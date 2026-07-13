@@ -5,5 +5,11 @@
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/sync-prices",
+      "schedule": "10 8 * * 1-5"
+    }
   ]
 }

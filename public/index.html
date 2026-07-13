@@ -1,343 +1,141 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>我的交易成长日志</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    :root{
-      --bg:#f6f7f9;--card:#fff;--text:#172033;--muted:#748094;--line:#e8ebf0;
-      --blue:#276ef1;--blue2:#edf3ff;--red:#e5484d;--green:#16a05d;
-    }
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",sans-serif}
-    button,input,select,textarea{font:inherit}
-    button{cursor:pointer}
-    .hidden{display:none!important}
-    .auth-wrap{min-height:100vh;display:grid;place-items:center;padding:20px}
-    .auth-card{width:min(430px,100%);background:#fff;border:1px solid var(--line);border-radius:24px;padding:30px;box-shadow:0 14px 38px rgba(30,45,70,.08)}
-    .logo{width:52px;height:52px;border-radius:16px;background:var(--blue);display:grid;place-items:center;color:#fff;font-size:24px}
-    h1,h2,h3{margin-top:0}
-    .muted{color:var(--muted)}
-    label{display:block;font-size:14px;font-weight:700;margin:14px 0 7px}
-    input,select,textarea{width:100%;border:1px solid #dce1e9;border-radius:13px;padding:13px 14px;background:#fff;outline:none}
-    textarea{min-height:110px;resize:vertical}
-    input:focus,select:focus,textarea:focus{border-color:#8db1ff;box-shadow:0 0 0 3px #edf3ff}
-    .btn{border:0;border-radius:13px;padding:14px 19px;font-weight:750;font-size:16px}
-    .primary{background:var(--blue);color:#fff}
-    .soft{background:var(--blue2);color:var(--blue)}
-    .danger{background:#fff0f0;color:var(--red)}
-    .auth-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
-    header{height:76px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:10}
-    .brand{display:flex;gap:12px;align-items:center}.brand h2{margin:0;font-size:20px}.brand small{color:var(--muted)}
-    .shell{display:grid;grid-template-columns:235px 1fr;min-height:calc(100vh - 76px)}
-    aside{background:#fff;border-right:1px solid var(--line);padding:18px 14px}
-    .nav{width:100%;border:0;background:transparent;border-radius:13px;padding:15px;text-align:left;color:#596579;font-weight:700;font-size:15px;margin:4px 0}
-    .nav.active,.nav:hover{background:var(--blue2);color:var(--blue)}
-    main{padding:28px;max-width:1450px;width:100%;margin:auto}
-    .page{display:none}.page.active{display:block}
-    .hero{display:flex;justify-content:space-between;align-items:center;gap:20px;background:linear-gradient(135deg,#fff,#eef4ff);border:1px solid #dce7ff;border-radius:22px;padding:25px}
-    .hero h1{margin:0 0 8px;font-size:27px}
-    .grid{display:grid;gap:17px}.g4{grid-template-columns:repeat(4,1fr)}.g2{grid-template-columns:repeat(2,1fr)}
-    .card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px;margin-top:18px;box-shadow:0 5px 20px rgba(40,50,70,.035)}
-    .metric{font-size:27px;font-weight:780;margin-top:8px}
-    .row{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}.row2{display:grid;grid-template-columns:repeat(2,1fr);gap:13px}
-    .actions{display:flex;gap:10px;flex-wrap:wrap}
-    .title{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:15px}.title h3{margin:0;font-size:20px}
-    table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:13px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{background:#fafbfc;color:#657187}
-    .scroll{overflow:auto}.badge{display:inline-block;border-radius:999px;padding:4px 9px;font-size:12px;font-weight:750}.buy{background:#fff1f1;color:var(--red)}.sell{background:#ecfbf2;color:var(--green)}
-    .empty{text-align:center;color:var(--muted);padding:25px}
-    .modal{display:none;position:fixed;inset:0;background:rgba(16,24,40,.34);z-index:30;align-items:center;justify-content:center;padding:20px}
-    .modal.open{display:flex}.modal-box{width:min(780px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:22px;padding:23px}
-    .modal-head{display:flex;justify-content:space-between;align-items:center}.modal-head button{border:0;background:#eff1f5;border-radius:10px;width:40px;height:40px;font-size:21px}
-    .lesson{border-left:5px solid var(--blue)}.lesson strong{color:var(--blue)}
-    .notice{background:#eef5ff;color:#2458b8;padding:13px;border-radius:12px;margin:12px 0}
-    .toast{display:none;position:fixed;right:22px;bottom:22px;background:#172033;color:#fff;padding:13px 17px;border-radius:12px;z-index:50}
-    @media(max-width:950px){.shell{grid-template-columns:1fr}aside{display:flex;overflow:auto;border-right:0;border-bottom:1px solid var(--line);padding:8px}.nav{min-width:125px}.g4,.g2,.row,.row2{grid-template-columns:1fr}.hero{align-items:stretch;flex-direction:column}}
-    @media(max-width:600px){header{padding:0 14px}.brand small{display:none}main{padding:15px}.btn{width:100%}}
-  </style>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>我的交易成长日志</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--text:#172033;--muted:#748094;--line:#e8ebf0;--blue:#276ef1;--blue2:#edf3ff;--red:#e5484d;--green:#16a05d}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",sans-serif}
+button,input,select,textarea{font:inherit}button{cursor:pointer}.hidden{display:none!important}
+.auth{min-height:100vh;display:grid;place-items:center;padding:20px}.auth-card{width:min(430px,100%);background:#fff;border:1px solid var(--line);border-radius:24px;padding:30px}
+.logo{width:50px;height:50px;border-radius:15px;background:var(--blue);color:#fff;display:grid;place-items:center;font-size:24px}
+.muted{color:var(--muted)}label{display:block;font-size:14px;font-weight:700;margin:13px 0 7px}
+input,select,textarea{width:100%;border:1px solid #dce1e9;border-radius:13px;padding:13px 14px;background:#fff;outline:none}textarea{min-height:115px;resize:vertical}
+input:focus,select:focus,textarea:focus{border-color:#8db1ff;box-shadow:0 0 0 3px #edf3ff}
+.btn{border:0;border-radius:13px;padding:14px 19px;font-weight:750;font-size:16px}.primary{background:var(--blue);color:#fff}.soft{background:var(--blue2);color:var(--blue)}.danger{background:#fff0f0;color:var(--red)}
+header{height:76px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:10}
+.brand{display:flex;gap:12px;align-items:center}.brand h2{margin:0;font-size:20px}.brand small{color:var(--muted)}
+.shell{display:grid;grid-template-columns:235px 1fr;min-height:calc(100vh - 76px)}aside{background:#fff;border-right:1px solid var(--line);padding:18px 14px}
+.nav{width:100%;border:0;background:transparent;border-radius:13px;padding:15px;text-align:left;color:#596579;font-weight:700;font-size:15px;margin:4px 0}.nav.active,.nav:hover{background:var(--blue2);color:var(--blue)}
+main{padding:28px;max-width:1450px;width:100%;margin:auto}.page{display:none}.page.active{display:block}
+.hero{display:flex;justify-content:space-between;align-items:center;gap:20px;background:linear-gradient(135deg,#fff,#eef4ff);border:1px solid #dce7ff;border-radius:22px;padding:25px}
+.grid{display:grid;gap:17px}.g4{grid-template-columns:repeat(4,1fr)}.g2{grid-template-columns:repeat(2,1fr)}
+.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px;margin-top:18px;box-shadow:0 5px 20px rgba(40,50,70,.035)}
+.metric{font-size:27px;font-weight:780;margin-top:8px}.row{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}.row2{display:grid;grid-template-columns:repeat(2,1fr);gap:13px}
+.actions{display:flex;gap:10px;flex-wrap:wrap}.title{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:15px}.title h3{margin:0}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:13px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{background:#fafbfc;color:#657187}.scroll{overflow:auto}
+.badge{display:inline-block;border-radius:999px;padding:4px 9px;font-size:12px;font-weight:750}.buy{background:#fff1f1;color:var(--red)}.sell{background:#ecfbf2;color:var(--green)}.empty{text-align:center;color:var(--muted);padding:25px}
+.modal{display:none;position:fixed;inset:0;background:rgba(16,24,40,.34);z-index:30;align-items:center;justify-content:center;padding:20px}.modal.open{display:flex}
+.modal-box{width:min(800px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:22px;padding:23px}.modal-head{display:flex;justify-content:space-between;align-items:center}.modal-head button{border:0;background:#eff1f5;border-radius:10px;width:40px;height:40px;font-size:21px}
+.notice{background:#eef5ff;color:#2458b8;padding:13px;border-radius:12px;margin:12px 0}.lesson{border-left:5px solid var(--blue)}.lesson strong{color:var(--blue)}.toast{display:none;position:fixed;right:22px;bottom:22px;background:#172033;color:#fff;padding:13px 17px;border-radius:12px;z-index:50}
+@media(max-width:950px){.shell{grid-template-columns:1fr}aside{display:flex;overflow:auto;border-right:0;border-bottom:1px solid var(--line);padding:8px}.nav{min-width:125px}.g4,.g2,.row,.row2{grid-template-columns:1fr}.hero{flex-direction:column;align-items:stretch}}
+@media(max-width:600px){header{padding:0 14px}.brand small{display:none}main{padding:15px}.btn{width:100%}}
+</style>
 </head>
 <body>
-<section id="auth" class="auth-wrap">
-  <div class="auth-card">
-    <div class="logo">📈</div>
-    <h1 style="margin:18px 0 7px">我的交易成长日志</h1>
-    <p class="muted">同一账号登录后，手机、MacBook和台式机自动同步。</p>
-    <label>邮箱</label><input id="email" type="email" placeholder="你的邮箱">
-    <label>密码</label><input id="password" type="password" placeholder="至少6位">
-    <div class="auth-actions">
-      <button class="btn primary" onclick="signIn()">登录</button>
-      <button class="btn soft" onclick="signUp()">注册</button>
-    </div>
-    <p id="authMsg" class="muted"></p>
-  </div>
-</section>
+<section id="auth" class="auth"><div class="auth-card">
+<div class="logo">📈</div><h1>我的交易成长日志</h1><p class="muted">同一账号登录后，多设备自动同步。</p>
+<label>邮箱</label><input id="email" type="email"><label>密码</label><input id="password" type="password">
+<div class="row2" style="margin-top:18px"><button class="btn primary" onclick="signIn()">登录</button><button class="btn soft" onclick="signUp()">注册</button></div><p id="authMsg" class="muted"></p>
+</div></section>
 
 <section id="app" class="hidden">
-<header>
-  <div class="brand"><div class="logo" style="width:42px;height:42px">📈</div><div><h2>我的交易成长日志</h2><small id="userEmail"></small></div></div>
-  <button class="btn soft" onclick="signOut()">退出</button>
-</header>
-<div class="shell">
-<aside>
-  <button class="nav active" data-page="home">🏠 今日首页</button>
-  <button class="nav" data-page="positions">💼 我的持仓</button>
-  <button class="nav" data-page="flows">🔄 交易流程</button>
-  <button class="nav" data-page="notes">✍️ 心得复盘</button>
-  <button class="nav" data-page="stocks">🔎 股票库</button>
-  <button class="nav" data-page="learning">📚 每日学习</button>
-</aside>
-<main>
+<header><div class="brand"><div class="logo" style="width:42px;height:42px">📈</div><div><h2>我的交易成长日志</h2><small id="userEmail"></small></div></div><button class="btn soft" onclick="signOut()">退出</button></header>
+<div class="shell"><aside>
+<button class="nav active" data-page="home">🏠 今日首页</button><button class="nav" data-page="positions">💼 我的持仓</button><button class="nav" data-page="flows">🔄 交易流程</button><button class="nav" data-page="notes">✍️ 心得复盘</button><button class="nav" data-page="stocks">🔎 股票库</button><button class="nav" data-page="learning">📚 每日学习</button>
+</aside><main>
 <section id="home" class="page active">
-  <div class="hero">
-    <div><h1>今天不交易，也可以有新的判断</h1><p class="muted">记录心得就是进步。只有真正需要时，才改变仓位。</p></div>
-    <div class="actions"><button class="btn primary" onclick="openNote()">＋ 写新心得</button><button class="btn soft" onclick="openBuy()">记录买入</button></div>
-  </div>
-  <div class="grid g4">
-    <div class="card"><span class="muted">当前持仓</span><div id="mPos" class="metric">0</div></div>
-    <div class="card"><span class="muted">持仓市值</span><div id="mValue" class="metric">¥0</div></div>
-    <div class="card"><span class="muted">累计已实现盈亏</span><div id="mProfit" class="metric">¥0</div></div>
-    <div class="card"><span class="muted">心得数量</span><div id="mNotes" class="metric">0</div></div>
-  </div>
-  <div class="grid g2">
-    <div class="card"><div class="title"><h3>今日学习卡</h3><button class="btn soft" onclick="showPage('learning')">展开</button></div><div id="lessonMini"></div></div>
-    <div class="card"><div class="title"><h3>最近心得</h3></div><div id="recentNotes"></div></div>
-  </div>
-  <div class="card"><div class="title"><h3>最近交易</h3></div><div id="recentTrades"></div></div>
+<div class="hero"><div><h1>今天不交易，也可以有新的判断</h1><p class="muted">记录心得就是进步，不为了打卡改变仓位。</p></div><div class="actions"><button class="btn primary" onclick="openNote()">＋ 写新心得</button><button class="btn soft" onclick="openBuy()">记录买入</button></div></div>
+<div class="grid g4"><div class="card"><span class="muted">当前持仓</span><div id="mPos" class="metric">0</div></div><div class="card"><span class="muted">持仓市值</span><div id="mValue" class="metric">¥0</div></div><div class="card"><span class="muted">累计已实现盈亏</span><div id="mProfit" class="metric">¥0</div></div><div class="card"><span class="muted">心得数量</span><div id="mNotes" class="metric">0</div></div></div>
+<div class="grid g2"><div class="card"><div class="title"><h3>今日学习卡</h3><div class="actions"><button class="btn soft" onclick="prevLesson()">上一个</button><button class="btn primary" onclick="nextLesson()">下一个知识点</button></div></div><div id="lessonMini"></div></div><div class="card"><div class="title"><h3>最近心得</h3></div><div id="recentNotes"></div></div></div>
 </section>
 
 <section id="positions" class="page"><div class="title"><h3>我的持仓</h3><button class="btn primary" onclick="openBuy()">＋ 记录买入</button></div><div class="card"><div id="positionsList"></div></div></section>
 <section id="flows" class="page"><div class="title"><h3>完整交易流程</h3></div><div class="card"><div id="flowsList"></div></div></section>
-<section id="notes" class="page"><div class="title"><h3>心得与复盘</h3><button class="btn primary" onclick="openNote()">＋ 写新心得</button></div><div class="card"><input id="noteSearch" placeholder="搜索股票、标题或心得内容" oninput="renderNotes()"><div id="notesList"></div></div></section>
-<section id="stocks" class="page"><div class="title"><h3>股票库</h3><button class="btn primary" onclick="openStock()">＋ 添加股票</button></div><div class="card"><div class="notice">输入A股代码和你的自定义板块，系统会通过云端接口补充名称、行业、市场和上市日期。</div><div id="stocksList"></div></div></section>
-<section id="learning" class="page"><div class="title"><h3>每日一个基础知识</h3></div><div class="card lesson" id="lessonFull"></div><div class="card"><h3>为什么今天推荐它</h3><p id="lessonWhy" class="muted"></p></div></section>
-</main>
-</div>
+<section id="notes" class="page"><div class="title"><h3>心得与复盘</h3><button class="btn primary" onclick="openNote()">＋ 写新心得</button></div><div class="card"><input id="noteSearch" placeholder="搜索股票、标题或内容" oninput="renderNotes()"><div id="notesList"></div></div></section>
+<section id="stocks" class="page"><div class="title"><h3>股票库</h3><button class="btn primary" onclick="openStock()">＋ 手动添加股票</button></div><div class="card"><div class="notice">股票库只显示代码、名称、板块和行业。未购买股票不显示价格，节省空间；购入价格保存在交易记录中。</div><div id="stocksList"></div></div></section>
+<section id="learning" class="page"><div class="title"><h3>金融基础知识</h3><div class="actions"><button class="btn soft" onclick="prevLesson()">上一个</button><button class="btn primary" onclick="nextLesson()">下一个知识点</button></div></div><div class="card lesson" id="lessonFull"></div><div class="card"><h3>为什么推荐给你</h3><p id="lessonWhy" class="muted"></p></div></section>
+</main></div>
 </section>
 
-<div class="modal" id="stockModal"><div class="modal-box">
-  <div class="modal-head"><h3>联网添加股票</h3><button onclick="closeM('stockModal')">×</button></div>
-  <div class="row2"><div><label>股票代码</label><input id="sCode" placeholder="例如 600422"></div><div><label>我的自定义板块</label><input id="sSector" placeholder="例如 创新药"></div></div>
-  <button class="btn soft" onclick="lookupStock()">联网查询信息</button>
-  <div id="stockPreview" class="notice hidden"></div>
-  <input type="hidden" id="sName"><input type="hidden" id="sIndustry"><input type="hidden" id="sMarket"><input type="hidden" id="sListDate">
-  <label>当前价格（可手动填写或修改）</label><input id="sPrice" type="number" step="0.01">
-  <button class="btn primary" style="margin-top:15px" onclick="saveStock()">保存到云端股票库</button>
-</div></div>
+<div class="modal" id="stockModal"><div class="modal-box"><div class="modal-head"><h3>添加股票 / 直接记录首次买入</h3><button onclick="closeM('stockModal')">×</button></div>
+<div class="row"><div><label>股票代码</label><input id="sCode" placeholder="600422"></div><div><label>股票名称</label><input id="sName" placeholder="昆药集团"></div><div><label>自定义板块</label><input id="sSector" placeholder="创新药"></div></div>
+<div class="row2"><div><label>官方行业（可选）</label><input id="sIndustry" placeholder="中药"></div><div><label>市场</label><select id="sMarket"><option>上海主板</option><option>深圳主板</option><option>创业板</option><option>科创板</option><option>北交所</option><option>港股</option><option>美股</option></select></div></div>
+<label style="margin-top:15px"><input id="firstBuyToggle" type="checkbox" style="width:auto" onchange="toggleFirstBuy()"> 同时记录首次买入</label>
+<div id="firstBuyFields" class="hidden"><div class="row"><div><label>购入价格</label><input id="sBuyPrice" type="number" step="0.01"></div><div><label>购入数量</label><input id="sBuyQty" type="number" value="100"></div><div><label>手续费</label><input id="sBuyFee" type="number" step="0.01" value="0"></div></div><div class="row2"><div><label>购入日期</label><input id="sBuyDate" type="date"></div><div><label>购入时间</label><input id="sBuyTime" type="time"></div></div><label>购入原因</label><textarea id="sBuyReason"></textarea></div>
+<button class="btn primary" style="margin-top:15px" onclick="saveManualStock()">保存</button></div></div>
 
-<div class="modal" id="buyModal"><div class="modal-box">
-  <div class="modal-head"><h3>记录买入</h3><button onclick="closeM('buyModal')">×</button></div>
-  <div class="row"><div><label>股票</label><select id="bStock"></select></div><div><label>日期</label><input id="bDate" type="date"></div><div><label>时间</label><input id="bTime" type="time"></div></div>
-  <div class="row"><div><label>买入价</label><input id="bPrice" type="number" step="0.01"></div><div><label>数量</label><input id="bQty" type="number" step="100" value="100"></div><div><label>手续费</label><input id="bFee" type="number" step="0.01" value="0"></div></div>
-  <label>买入原因</label><textarea id="bReason"></textarea>
-  <button class="btn primary" onclick="saveBuy()">保存买入</button>
-</div></div>
+<div class="modal" id="buyModal"><div class="modal-box"><div class="modal-head"><h3>记录买入</h3><button onclick="closeM('buyModal')">×</button></div>
+<div class="row"><div><label>股票</label><select id="bStock"></select></div><div><label>日期</label><input id="bDate" type="date"></div><div><label>时间</label><input id="bTime" type="time"></div></div>
+<div class="row"><div><label>买入价</label><input id="bPrice" type="number" step="0.01"></div><div><label>数量</label><input id="bQty" type="number" value="100"></div><div><label>手续费</label><input id="bFee" type="number" step="0.01" value="0"></div></div>
+<label>买入原因</label><textarea id="bReason"></textarea><button class="btn primary" onclick="saveBuy()">保存买入</button></div></div>
 
-<div class="modal" id="sellModal"><div class="modal-box">
-  <div class="modal-head"><h3 id="sellTitle">记录卖出</h3><button onclick="closeM('sellModal')">×</button></div><input id="sellPos" type="hidden">
-  <div class="row"><div><label>日期</label><input id="xDate" type="date"></div><div><label>时间</label><input id="xTime" type="time"></div><div><label>卖出价</label><input id="xPrice" type="number" step="0.01"></div></div>
-  <div class="row2"><div><label>卖出数量</label><input id="xQty" type="number"></div><div><label>手续费</label><input id="xFee" type="number" step="0.01" value="0"></div></div>
-  <label>卖出原因</label><textarea id="xReason"></textarea>
-  <label>这笔交易最大的心得</label><textarea id="xLesson"></textarea>
-  <button class="btn primary" onclick="saveSell()">完成卖出</button>
-</div></div>
+<div class="modal" id="sellModal"><div class="modal-box"><div class="modal-head"><h3 id="sellTitle">记录卖出</h3><button onclick="closeM('sellModal')">×</button></div><input id="sellPos" type="hidden">
+<div class="row"><div><label>日期</label><input id="xDate" type="date"></div><div><label>时间</label><input id="xTime" type="time"></div><div><label>卖出价</label><input id="xPrice" type="number" step="0.01"></div></div>
+<div class="row2"><div><label>卖出数量</label><input id="xQty" type="number"></div><div><label>手续费</label><input id="xFee" type="number" step="0.01" value="0"></div></div>
+<label>卖出原因</label><textarea id="xReason"></textarea><label>最大心得</label><textarea id="xLesson"></textarea><button class="btn primary" onclick="saveSell()">完成卖出</button></div></div>
 
-<div class="modal" id="noteModal"><div class="modal-box">
-  <div class="modal-head"><h3>写新心得</h3><button onclick="closeM('noteModal')">×</button></div>
-  <div class="row"><div><label>日期</label><input id="nDate" type="date"></div><div><label>类型</label><select id="nType"><option>每日心得</option><option>公司研究</option><option>市场观察</option><option>学习笔记</option></select></div><div><label>关联股票</label><select id="nStock"><option value="">不关联</option></select></div></div>
-  <label>标题</label><input id="nTitle">
-  <label>内容</label><textarea id="nContent" placeholder="今天的新判断、做对了什么、哪里还不确定……"></textarea>
-  <button class="btn primary" onclick="saveNote()">保存心得</button>
-</div></div>
+<div class="modal" id="noteModal"><div class="modal-box"><div class="modal-head"><h3 id="noteModalTitle">写新心得</h3><button onclick="closeM('noteModal')">×</button></div><input id="nId" type="hidden">
+<div class="row"><div><label>日期</label><input id="nDate" type="date"></div><div><label>类型</label><select id="nType"><option>每日心得</option><option>公司研究</option><option>市场观察</option><option>学习笔记</option><option>卖出复盘</option></select></div><div><label>关联股票</label><select id="nStock"><option value="">不关联</option></select></div></div>
+<label>标题</label><input id="nTitle"><label>内容</label><textarea id="nContent"></textarea><button class="btn primary" onclick="saveNote()">保存心得</button></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
 let sb,user,stocks=[],positions=[],trades=[],notes=[];
+let lessonIndex=Number(localStorage.getItem('lessonIndex')||0);
 const lessons=[
- ['成交量 Volume','成交量是某段时间内实际成交的股票数量。','它帮助你判断价格变化背后有没有真实资金参与。','昆药上涨同时放量，说明参与资金增加；但高位放量也可能意味着分歧和卖出增加。','你最近在学习资金流向，成交量是理解资金行为的第一步。'],
- ['止损 Stop Loss','止损是预先规定判断失败时如何退出。','它不是承认自己笨，而是限制一次错误对账户的伤害。','20元买入，计划18.8元重新检查逻辑，这就是风险边界。','你正在建立完整交易流程，买入原因之外还需要失败处理方案。'],
- ['仓位 Position Size','仓位是投入某只股票的资金占账户总资金的比例。','仓位决定同一次涨跌对账户造成多大影响。','账户10万元，昆药持仓2万元，单只股票仓位为20%。','基金经理先想风险暴露，再想收益空间。'],
- ['风险收益比 Risk-Reward Ratio','风险收益比比较计划亏损和计划盈利。','胜率不是全部，平均盈利与平均亏损同样重要。','计划最多亏1元、目标赚3元，可描述为风险1、潜在收益3。','你已经记录价格与原因，下一步是量化判断。'],
- ['基本面 Fundamentals','基本面包括业务、收入、利润、现金流和竞争力。','它回答公司长期为什么有价值，而不是明天是否上涨。','分析昆药要看产品结构、利润变化、华润协同和政策风险。','你希望建立行业—公司—估值—资金—技术的完整框架。']
+['成交量 Volume','成交量是某段时间内实际成交的股票数量。','价格变化背后是否有真实资金参与。','昆药上涨同时放量，说明参与资金增加；高位放量也可能是分歧加大。','你最近正在学习资金流向。'],
+['止损 Stop Loss','止损是预先规定判断失败时如何退出。','限制一次错误对账户的伤害。','20元买入，18.8元重新检查逻辑，就是风险边界。','交易流程不能只有买入理由，也要有失败方案。'],
+['仓位 Position Size','仓位是某只股票占账户资金的比例。','它决定同一次涨跌对账户影响多大。','账户10万元，昆药买2万元，仓位为20%。','基金经理先管理风险暴露。'],
+['风险收益比 Risk-Reward Ratio','风险收益比比较计划亏损和计划盈利。','胜率不是全部，平均盈亏同样重要。','最多亏1元、目标赚3元，就是风险1、潜在收益3。','你已经记录价格，下一步是量化风险。'],
+['基本面 Fundamentals','基本面包括业务、收入、利润、现金流和竞争力。','它回答公司长期为什么有价值。','昆药要看产品结构、利润变化、华润协同和政策风险。','帮助你区分好公司与好价格。'],
+['估值 Valuation','估值是市场愿意为公司利润和资产支付多少价格。','好公司买得太贵也可能长期收益不佳。','市盈率要和增长速度、行业位置、历史区间一起比较。','这是你统一股票分析框架中的第五步。'],
+['换手率 Turnover Rate','换手率是成交股数占流通股本的比例。','它反映筹码交换活跃程度。','低位放量高换手可能是资金进场，高位则可能是派发。','它和成交量、价格位置、资金面要联动。']
 ];
-const $=id=>document.getElementById(id);
-const d=()=>new Date().toISOString().slice(0,10);
-const tm=()=>new Date().toTimeString().slice(0,5);
+const $=id=>document.getElementById(id), d=()=>new Date().toISOString().slice(0,10), tm=()=>new Date().toTimeString().slice(0,5);
 const money=v=>'¥'+Number(v||0).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
 const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
-
-async function init(){
- try{
-   const r=await fetch('/api/config');
-   const c=await r.json();
-   if(!r.ok) throw new Error(c.error||'无法读取配置');
-   if(!c.supabaseUrl||!c.supabaseAnonKey) throw new Error('尚未配置Supabase环境变量');
-   sb=supabase.createClient(c.supabaseUrl,c.supabaseAnonKey);
-   const {data}=await sb.auth.getSession();
-   if(data.session) enter(data.session.user);
-   sb.auth.onAuthStateChange((event,session)=>session?enter(session.user):leave());
- }catch(e){$('authMsg').textContent='连接配置错误：'+e.message}
-}
-async function signUp(){
- $('authMsg').textContent='正在注册…';
- const {error}=await sb.auth.signUp({email:$('email').value,password:$('password').value});
- $('authMsg').textContent=error?error.message:'注册成功。若开启邮箱验证，请先到邮箱点击验证链接。';
-}
-async function signIn(){
- $('authMsg').textContent='正在登录…';
- const {error}=await sb.auth.signInWithPassword({email:$('email').value,password:$('password').value});
- $('authMsg').textContent=error?error.message:'';
-}
-async function signOut(){await sb.auth.signOut()}
-function leave(){$('auth').classList.remove('hidden');$('app').classList.add('hidden')}
+async function init(){try{const c=await fetch('/api/config').then(r=>r.json());sb=supabase.createClient(c.supabaseUrl,c.supabaseAnonKey);const {data}=await sb.auth.getSession();if(data.session)enter(data.session.user);sb.auth.onAuthStateChange((e,s)=>s?enter(s.user):leave())}catch(e){$('authMsg').textContent=e.message}}
+async function signUp(){const {error}=await sb.auth.signUp({email:$('email').value,password:$('password').value});$('authMsg').textContent=error?error.message:'注册成功，请按邮件提示验证。'}
+async function signIn(){const {error}=await sb.auth.signInWithPassword({email:$('email').value,password:$('password').value});$('authMsg').textContent=error?error.message:''}
+async function signOut(){await sb.auth.signOut()}function leave(){$('auth').classList.remove('hidden');$('app').classList.add('hidden')}
 async function enter(u){user=u;$('auth').classList.add('hidden');$('app').classList.remove('hidden');$('userEmail').textContent=u.email;await loadAll()}
-async function loadAll(){
- const qs=await Promise.all([
-   sb.from('stocks').select('*').order('created_at'),
-   sb.from('positions').select('*').order('created_at',{ascending:false}),
-   sb.from('trades').select('*').order('trade_date',{ascending:false}),
-   sb.from('notes').select('*').order('note_date',{ascending:false})
- ]);
- for(const q of qs){if(q.error){alert(q.error.message);return}}
- [stocks,positions,trades,notes]=qs.map(q=>q.data||[]);
- render();
-}
-function showPage(id){
- document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
- document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));
- $(id).classList.add('active');
- document.querySelector(`[data-page="${id}"]`).classList.add('active');
-}
-document.querySelectorAll('.nav').forEach(x=>x.onclick=()=>showPage(x.dataset.page));
-function openM(id){$(id).classList.add('open')}
-function closeM(id){$(id).classList.remove('open')}
-function msg(t){$('toast').textContent=t;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',2000)}
-function openStock(){$('stockPreview').classList.add('hidden');openM('stockModal')}
-function openBuy(){if(!stocks.length)return alert('请先添加股票');$('bDate').value=d();$('bTime').value=tm();openM('buyModal')}
-function openNote(){$('nDate').value=d();openM('noteModal')}
-
-async function lookupStock(){
- const code=$('sCode').value.trim();if(!code)return alert('请输入股票代码');
- $('stockPreview').classList.remove('hidden');$('stockPreview').textContent='正在联网查询…';
- const r=await fetch('/api/stock?code='+encodeURIComponent(code));
- const j=await r.json();
- if(!r.ok){$('stockPreview').textContent=j.error||'查询失败';return}
- $('sName').value=j.name||'';$('sIndustry').value=j.industry||'';$('sMarket').value=j.market||'';$('sListDate').value=j.list_date||'';
- if(j.close)$('sPrice').value=j.close;
- $('stockPreview').innerHTML=`<strong>${esc(j.name)}</strong><br>行业：${esc(j.industry||'暂无')}<br>市场：${esc(j.market||'暂无')}<br>上市日期：${esc(j.list_date||'暂无')}`;
-}
-async function saveStock(){
- if(!$('sCode').value.trim()||!$('sName').value)return alert('请先联网查询并确认信息');
- const {error}=await sb.from('stocks').insert({
-   user_id:user.id,code:$('sCode').value.trim(),name:$('sName').value,
-   custom_sector:$('sSector').value.trim(),industry:$('sIndustry').value,
-   market:$('sMarket').value,list_date:$('sListDate').value||null,
-   current_price:Number($('sPrice').value||0)
- });
+async function loadAll(){const qs=await Promise.all([sb.from('stocks').select('*').order('created_at'),sb.from('positions').select('*').order('created_at',{ascending:false}),sb.from('trades').select('*').order('trade_date',{ascending:false}),sb.from('notes').select('*').order('note_date',{ascending:false})]);for(const q of qs)if(q.error)return alert(q.error.message);[stocks,positions,trades,notes]=qs.map(q=>q.data||[]);render()}
+function showPage(id){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));$(id).classList.add('active');document.querySelector(`[data-page="${id}"]`).classList.add('active')}
+document.querySelectorAll('.nav').forEach(x=>x.onclick=()=>showPage(x.dataset.page));function openM(id){$(id).classList.add('open')}function closeM(id){$(id).classList.remove('open')}
+function toast(t){$('toast').textContent=t;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',1800)}
+function toggleFirstBuy(){$('firstBuyFields').classList.toggle('hidden',!$('firstBuyToggle').checked)}
+function openStock(){$('sBuyDate').value=d();$('sBuyTime').value=tm();openM('stockModal')}function openBuy(){if(!stocks.length)return alert('请先添加股票');$('bDate').value=d();$('bTime').value=tm();openM('buyModal')}
+function openNote(){resetNote();openM('noteModal')}function resetNote(){$('nId').value='';$('noteModalTitle').textContent='写新心得';$('nDate').value=d();$('nTitle').value='';$('nContent').value='';$('nStock').value=''}
+async function saveManualStock(){
+ const code=$('sCode').value.trim(),name=$('sName').value.trim();if(!code||!name)return alert('请填写代码和名称');
+ const {data:s,error}=await sb.from('stocks').insert({user_id:user.id,code,name,custom_sector:$('sSector').value.trim(),industry:$('sIndustry').value.trim(),market:$('sMarket').value,current_price:0}).select().single();
  if(error)return alert(error.message);
- closeM('stockModal');await loadAll();msg('股票已保存到云端');
+ if($('firstBuyToggle').checked){
+  const price=Number($('sBuyPrice').value),qty=Number($('sBuyQty').value),reason=$('sBuyReason').value.trim();if(price<=0||qty<=0||!reason)return alert('首次买入信息不完整');
+  const {data:p,error:pe}=await sb.from('positions').insert({user_id:user.id,stock_id:s.id,open_quantity:qty,status:'open'}).select().single();if(pe)return alert(pe.message);
+  await sb.from('trades').insert({user_id:user.id,position_id:p.id,stock_id:s.id,trade_type:'buy',trade_date:$('sBuyDate').value,trade_time:$('sBuyTime').value,price,quantity:qty,fee:Number($('sBuyFee').value||0),reason});
+ }
+ closeM('stockModal');await loadAll();toast('股票已保存');
 }
-async function saveBuy(){
- const stockId=$('bStock').value,price=Number($('bPrice').value),qty=Number($('bQty').value),reason=$('bReason').value.trim();
- if(!stockId||price<=0||qty<=0||!reason)return alert('请完整填写买入信息');
- const {data:p,error:pe}=await sb.from('positions').insert({user_id:user.id,stock_id:stockId,open_quantity:qty,status:'open'}).select().single();
- if(pe)return alert(pe.message);
- const {error}=await sb.from('trades').insert({
-   user_id:user.id,position_id:p.id,stock_id:stockId,trade_type:'buy',
-   trade_date:$('bDate').value,trade_time:$('bTime').value,price,quantity:qty,
-   fee:Number($('bFee').value||0),reason
- });
- if(error)return alert(error.message);
- closeM('buyModal');$('bReason').value='';await loadAll();msg('买入已同步');
-}
-function posData(){
- return positions.map(p=>{
-   const s=stocks.find(x=>x.id===p.stock_id)||{};
-   const ts=trades.filter(t=>t.position_id===p.id);
-   const buy=ts.find(t=>t.trade_type==='buy')||{};
-   const sells=ts.filter(t=>t.trade_type==='sell');
-   const open=Number(p.open_quantity);
-   const realized=sells.reduce((a,t)=>a+(Number(t.price)-Number(buy.price))*Number(t.quantity)-Number(t.fee||0),0)-Number(buy.fee||0);
-   return {...p,s,buy,sells,open,realized,floating:(Number(s.current_price||buy.price)-Number(buy.price))*open,value:Number(s.current_price||buy.price)*open};
- });
-}
-function openSell(id){
- const p=posData().find(x=>x.id===id);
- $('sellPos').value=id;$('sellTitle').textContent=`卖出 ${p.s.name}（可卖 ${p.open} 股）`;
- $('xDate').value=d();$('xTime').value=tm();$('xQty').value=p.open;$('xPrice').value=p.s.current_price||p.buy.price;openM('sellModal');
-}
-async function saveSell(){
- const p=posData().find(x=>x.id===$('sellPos').value),qty=Number($('xQty').value),price=Number($('xPrice').value),reason=$('xReason').value.trim();
- if(!p||qty<=0||qty>p.open||price<=0||!reason)return alert('请检查卖出信息');
- const {error}=await sb.from('trades').insert({
-   user_id:user.id,position_id:p.id,stock_id:p.stock_id,trade_type:'sell',
-   trade_date:$('xDate').value,trade_time:$('xTime').value,price,quantity:qty,
-   fee:Number($('xFee').value||0),reason,lesson:$('xLesson').value.trim()
- });
- if(error)return alert(error.message);
- const remain=p.open-qty;
- await sb.from('positions').update({open_quantity:remain,status:remain===0?'closed':'open'}).eq('id',p.id);
- await sb.from('notes').insert({
-   user_id:user.id,stock_id:p.stock_id,note_date:$('xDate').value,note_type:'卖出复盘',
-   title:`${p.s.name}卖出复盘`,content:`卖出原因：${reason}\n心得：${$('xLesson').value.trim()||'未填写'}`
- });
- closeM('sellModal');$('xReason').value='';$('xLesson').value='';await loadAll();msg('卖出与复盘已同步');
-}
-async function saveNote(){
- const content=$('nContent').value.trim();if(!content)return alert('请写下心得');
- const {error}=await sb.from('notes').insert({
-   user_id:user.id,stock_id:$('nStock').value||null,note_date:$('nDate').value,
-   note_type:$('nType').value,title:$('nTitle').value.trim()||$('nType').value,content
- });
- if(error)return alert(error.message);
- closeM('noteModal');$('nTitle').value='';$('nContent').value='';await loadAll();msg('心得已同步到所有设备');
-}
-async function priceUpdate(id,v){await sb.from('stocks').update({current_price:Number(v||0)}).eq('id',id);await loadAll()}
-
+async function saveBuy(){const stockId=$('bStock').value,price=Number($('bPrice').value),qty=Number($('bQty').value),reason=$('bReason').value.trim();if(!stockId||price<=0||qty<=0||!reason)return alert('请完整填写');const {data:p,error}=await sb.from('positions').insert({user_id:user.id,stock_id:stockId,open_quantity:qty,status:'open'}).select().single();if(error)return alert(error.message);await sb.from('trades').insert({user_id:user.id,position_id:p.id,stock_id:stockId,trade_type:'buy',trade_date:$('bDate').value,trade_time:$('bTime').value,price,quantity:qty,fee:Number($('bFee').value||0),reason});closeM('buyModal');await loadAll();toast('买入已保存')}
+function posData(){return positions.map(p=>{const s=stocks.find(x=>x.id===p.stock_id)||{},ts=trades.filter(t=>t.position_id===p.id),buy=ts.find(t=>t.trade_type==='buy')||{},sells=ts.filter(t=>t.trade_type==='sell'),open=Number(p.open_quantity),realized=sells.reduce((a,t)=>a+(Number(t.price)-Number(buy.price))*Number(t.quantity)-Number(t.fee||0),0)-Number(buy.fee||0),mark=Number(s.close_price||s.current_price||buy.price);return{...p,s,buy,sells,open,realized,value:mark*open,floating:(mark-Number(buy.price))*open}})}
+function openSell(id){const p=posData().find(x=>x.id===id);$('sellPos').value=id;$('sellTitle').textContent=`卖出 ${p.s.name}`;$('xDate').value=d();$('xTime').value=tm();$('xQty').value=p.open;$('xPrice').value=p.s.close_price||p.buy.price;openM('sellModal')}
+async function saveSell(){const p=posData().find(x=>x.id===$('sellPos').value),qty=Number($('xQty').value),price=Number($('xPrice').value),reason=$('xReason').value.trim();if(!p||qty<=0||qty>p.open||price<=0||!reason)return alert('请检查卖出信息');await sb.from('trades').insert({user_id:user.id,position_id:p.id,stock_id:p.stock_id,trade_type:'sell',trade_date:$('xDate').value,trade_time:$('xTime').value,price,quantity:qty,fee:Number($('xFee').value||0),reason,lesson:$('xLesson').value.trim()});const remain=p.open-qty;await sb.from('positions').update({open_quantity:remain,status:remain===0?'closed':'open'}).eq('id',p.id);await sb.from('notes').insert({user_id:user.id,stock_id:p.stock_id,note_date:$('xDate').value,note_type:'卖出复盘',title:`${p.s.name}卖出复盘`,content:`卖出原因：${reason}\n心得：${$('xLesson').value.trim()||'未填写'}`});closeM('sellModal');await loadAll();toast('卖出已保存')}
+async function saveNote(){const id=$('nId').value,payload={stock_id:$('nStock').value||null,note_date:$('nDate').value,note_type:$('nType').value,title:$('nTitle').value.trim()||$('nType').value,content:$('nContent').value.trim()};if(!payload.content)return alert('请填写内容');let q=id?sb.from('notes').update(payload).eq('id',id):sb.from('notes').insert({...payload,user_id:user.id});const {error}=await q;if(error)return alert(error.message);closeM('noteModal');await loadAll();toast(id?'心得已修改':'心得已保存')}
+function editNote(id){const n=notes.find(x=>x.id===id);$('nId').value=n.id;$('noteModalTitle').textContent='修改心得';$('nDate').value=n.note_date;$('nType').value=n.note_type;$('nStock').value=n.stock_id||'';$('nTitle').value=n.title;$('nContent').value=n.content;openM('noteModal')}
+async function deleteNote(id){if(!confirm('确定删除这条心得？'))return;await sb.from('notes').delete().eq('id',id);await loadAll();toast('已删除')}
+function nextLesson(){lessonIndex=(lessonIndex+1)%lessons.length;localStorage.setItem('lessonIndex',lessonIndex);renderLesson()}function prevLesson(){lessonIndex=(lessonIndex-1+lessons.length)%lessons.length;localStorage.setItem('lessonIndex',lessonIndex);renderLesson()}
 function render(){
- const opts=stocks.map(s=>`<option value="${s.id}">${esc(s.code)} ${esc(s.name)}</option>`).join('');
- $('bStock').innerHTML=opts;$('nStock').innerHTML='<option value="">不关联</option>'+opts;
- const ps=posData(),open=ps.filter(x=>x.open>0);
- $('mPos').textContent=open.length;$('mValue').textContent=money(open.reduce((a,x)=>a+x.value,0));$('mProfit').textContent=money(ps.reduce((a,x)=>a+x.realized,0));$('mNotes').textContent=notes.length;
-
- $('positionsList').innerHTML=open.length?open.map(p=>`<div style="display:grid;grid-template-columns:1.5fr repeat(4,1fr) auto;gap:13px;align-items:center;padding:17px 0;border-bottom:1px solid var(--line)">
- <div><strong>${esc(p.s.name)}</strong><div class="muted">${esc(p.s.code)} · ${esc(p.s.custom_sector||p.s.industry||'')}</div></div>
- <div><span class="muted">持仓</span><br><strong>${p.open}股</strong></div>
- <div><span class="muted">成本</span><br><strong>${p.buy.price}</strong></div>
- <div><span class="muted">现价</span><br><strong>${p.s.current_price||p.buy.price}</strong></div>
- <div><span class="muted">浮动盈亏</span><br><strong>${money(p.floating)}</strong></div>
- <button class="btn primary" onclick="openSell('${p.id}')">卖出</button></div>`).join(''):'<div class="empty">暂无持仓</div>';
-
- $('flowsList').innerHTML=ps.length?ps.map(p=>`<div style="padding:17px 0;border-bottom:1px solid var(--line)">
- <strong>${esc(p.s.name)} ${esc(p.s.code)}</strong>
- <div style="line-height:1.9;margin-top:8px"><span class="badge buy">买入</span> ${p.buy.trade_date||''} ${p.buy.trade_time||''} · ${p.buy.price||''}元 × ${p.buy.quantity||''}股
- <br><span class="muted">原因：${esc(p.buy.reason||'')}</span>
- ${p.sells.map(t=>`<br><span class="badge sell">卖出</span> ${t.trade_date} ${t.trade_time} · ${t.price}元 × ${t.quantity}股<br><span class="muted">原因：${esc(t.reason)}</span>`).join('')}
- </div></div>`).join(''):'<div class="empty">暂无交易流程</div>';
-
- renderNotes();
-
- $('stocksList').innerHTML=stocks.length?`<div class="scroll"><table><thead><tr><th>代码</th><th>名称</th><th>自定义板块</th><th>官方行业</th><th>市场</th><th>上市日期</th><th>现价</th></tr></thead><tbody>
- ${stocks.map(s=>`<tr><td>${esc(s.code)}</td><td>${esc(s.name)}</td><td>${esc(s.custom_sector)}</td><td>${esc(s.industry)}</td><td>${esc(s.market)}</td><td>${esc(s.list_date||'')}</td><td><input type="number" value="${s.current_price||0}" style="width:100px" onchange="priceUpdate('${s.id}',this.value)"></td></tr>`).join('')}
- </tbody></table></div>`:'<div class="empty">暂无股票</div>';
-
- $('recentNotes').innerHTML=notes.slice(0,3).map(n=>`<div style="padding:9px 0;border-bottom:1px solid var(--line)"><strong>${esc(n.title)}</strong><div class="muted">${n.note_date} · ${esc(n.content).slice(0,70)}</div></div>`).join('')||'<div class="empty">今天写一条心得吧</div>';
- $('recentTrades').innerHTML=trades.slice(0,6).map(t=>{const s=stocks.find(x=>x.id===t.stock_id)||{};return `<div style="padding:9px 0;border-bottom:1px solid var(--line)"><span class="badge ${t.trade_type==='buy'?'buy':'sell'}">${t.trade_type==='buy'?'买入':'卖出'}</span> <strong>${esc(s.name)}</strong> ${t.trade_date} ${t.trade_time} · ${t.price}元 × ${t.quantity}股</div>`}).join('')||'<div class="empty">暂无交易</div>';
- renderLesson();
+ const opts=stocks.map(s=>`<option value="${s.id}">${esc(s.code)} ${esc(s.name)}</option>`).join('');$('bStock').innerHTML=opts;$('nStock').innerHTML='<option value="">不关联</option>'+opts;
+ const ps=posData(),open=ps.filter(x=>x.open>0);$('mPos').textContent=open.length;$('mValue').textContent=money(open.reduce((a,x)=>a+x.value,0));$('mProfit').textContent=money(ps.reduce((a,x)=>a+x.realized,0));$('mNotes').textContent=notes.length;
+ $('positionsList').innerHTML=open.length?open.map(p=>`<div style="padding:17px 0;border-bottom:1px solid var(--line)"><div class="title"><div><strong>${esc(p.s.name)} ${esc(p.s.code)}</strong><div class="muted">${esc(p.s.custom_sector||p.s.industry||'')}</div></div><button class="btn primary" onclick="openSell('${p.id}')">卖出</button></div><div class="grid g4"><div><span class="muted">持仓/成本</span><br>${p.open}股 / ${p.buy.price}</div><div><span class="muted">今日开盘</span><br>${p.s.open_price??'待更新'}</div><div><span class="muted">今日收盘</span><br>${p.s.close_price??'待更新'}</div><div><span class="muted">浮动盈亏</span><br>${money(p.floating)}</div></div><div class="muted" style="margin-top:8px">行情日期：${p.s.price_date||'尚未同步'}</div></div>`).join(''):'<div class="empty">暂无持仓</div>';
+ $('flowsList').innerHTML=ps.length?ps.map(p=>`<div style="padding:16px 0;border-bottom:1px solid var(--line)"><strong>${esc(p.s.name)}</strong><p><span class="badge buy">买入</span> ${p.buy.trade_date||''} ${p.buy.trade_time||''} · ${p.buy.price||''} × ${p.buy.quantity||''}<br><span class="muted">${esc(p.buy.reason||'')}</span>${p.sells.map(t=>`<br><span class="badge sell">卖出</span> ${t.trade_date} ${t.trade_time} · ${t.price} × ${t.quantity}<br><span class="muted">${esc(t.reason)}</span>`).join('')}</p></div>`).join(''):'<div class="empty">暂无交易</div>';
+ $('stocksList').innerHTML=stocks.length?`<div class="scroll"><table><thead><tr><th>代码</th><th>名称</th><th>自定义板块</th><th>官方行业</th><th>市场</th></tr></thead><tbody>${stocks.map(s=>`<tr><td>${esc(s.code)}</td><td>${esc(s.name)}</td><td>${esc(s.custom_sector)}</td><td>${esc(s.industry)}</td><td>${esc(s.market)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">暂无股票</div>';
+ $('recentNotes').innerHTML=notes.slice(0,4).map(n=>`<div style="padding:9px 0;border-bottom:1px solid var(--line)"><strong>${esc(n.title)}</strong><div class="muted">${n.note_date} · ${esc(n.content).slice(0,75)}</div></div>`).join('')||'<div class="empty">今天写一条心得吧</div>';renderNotes();renderLesson()
 }
-function renderNotes(){
- const q=($('noteSearch').value||'').toLowerCase();
- const arr=notes.filter(n=>{const s=stocks.find(x=>x.id===n.stock_id)||{};return[n.title,n.content,s.name].join(' ').toLowerCase().includes(q)});
- $('notesList').innerHTML=arr.map(n=>`<div style="padding:16px 0;border-bottom:1px solid var(--line)"><span class="badge">${esc(n.note_type)}</span> <strong>${esc(n.title)}</strong><span class="muted" style="float:right">${n.note_date}</span><p class="muted">${esc(n.content).replace(/\n/g,'<br>')}</p></div>`).join('')||'<div class="empty">暂无心得</div>';
-}
-function renderLesson(){
- const l=lessons[Math.floor(Date.now()/86400000)%lessons.length];
- $('lessonMini').innerHTML=`<strong>${l[0]}</strong><p>${l[1]}</p><p class="muted">${l[3]}</p>`;
- $('lessonFull').innerHTML=`<strong>${l[0]}</strong><h3>${l[1]}</h3><p><b>为什么重要：</b>${l[2]}</p><p><b>真实例子：</b>${l[3]}</p>`;
- $('lessonWhy').textContent=l[4];
-}
+function renderNotes(){const q=($('noteSearch').value||'').toLowerCase(),arr=notes.filter(n=>{const s=stocks.find(x=>x.id===n.stock_id)||{};return[n.title,n.content,s.name].join(' ').toLowerCase().includes(q)});$('notesList').innerHTML=arr.map(n=>`<div style="padding:16px 0;border-bottom:1px solid var(--line)"><div class="title"><div><span class="badge">${esc(n.note_type)}</span> <strong>${esc(n.title)}</strong><span class="muted"> · ${n.note_date}</span></div><div class="actions"><button class="btn soft" onclick="editNote('${n.id}')">修改</button><button class="btn danger" onclick="deleteNote('${n.id}')">删除</button></div></div><p class="muted">${esc(n.content).replace(/\n/g,'<br>')}</p></div>`).join('')||'<div class="empty">暂无心得</div>'}
+function renderLesson(){const l=lessons[lessonIndex];$('lessonMini').innerHTML=`<strong>${l[0]}</strong><p>${l[1]}</p><p class="muted">${l[3]}</p>`;$('lessonFull').innerHTML=`<strong>${l[0]}</strong><h3>${l[1]}</h3><p><b>为什么重要：</b>${l[2]}</p><p><b>真实例子：</b>${l[3]}</p>`;$('lessonWhy').textContent=l[4]}
 init();
-</script>
-</body>
-</html>
+</script></body></html>
