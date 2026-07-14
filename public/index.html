@@ -1,0 +1,972 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f5f5f7">
+<title>我的交易成长日志</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#f5f5f7;
+  --surface:#ffffff;
+  --surface-soft:rgba(255,255,255,.76);
+  --text:#1d1d1f;
+  --muted:#6e6e73;
+  --line:rgba(29,29,31,.08);
+  --black:#111113;
+  --blue:#0071e3;
+  --blue-soft:#eaf4ff;
+  --red:#d70015;
+  --green:#168443;
+  --shadow:0 18px 48px rgba(0,0,0,.07);
+  --shadow-soft:0 8px 26px rgba(0,0,0,.045);
+  --radius-xl:30px;
+  --radius-lg:24px;
+  --radius-md:18px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  min-height:100vh;
+  background:
+    radial-gradient(circle at 12% 4%,rgba(255,255,255,.95),transparent 28%),
+    radial-gradient(circle at 90% 0%,rgba(225,237,255,.72),transparent 25%),
+    var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","PingFang SC","Helvetica Neue",Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+.hidden{display:none!important}
+.muted{color:var(--muted)}
+
+.auth{
+  min-height:100vh;
+  display:grid;
+  place-items:center;
+  padding:28px;
+}
+.auth-card{
+  width:min(460px,100%);
+  padding:38px;
+  border:1px solid rgba(255,255,255,.82);
+  border-radius:34px;
+  background:rgba(255,255,255,.84);
+  backdrop-filter:blur(28px) saturate(180%);
+  box-shadow:0 30px 90px rgba(0,0,0,.11);
+}
+.logo{
+  width:54px;height:54px;border-radius:17px;
+  display:grid;place-items:center;
+  color:#fff;font-size:24px;
+  background:linear-gradient(145deg,#1c1c1e,#000);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.24),0 12px 26px rgba(0,0,0,.18);
+}
+.auth-card h1{font-size:34px;letter-spacing:-1.2px;margin:22px 0 8px}
+.auth-card p{line-height:1.6}
+
+label{display:block;font-size:13px;font-weight:700;margin:15px 0 8px;color:#3a3a3c}
+input,select,textarea{
+  width:100%;
+  border:1px solid rgba(29,29,31,.11);
+  border-radius:16px;
+  padding:14px 15px;
+  background:rgba(255,255,255,.92);
+  color:var(--text);
+  outline:none;
+  transition:.2s ease;
+}
+textarea{min-height:120px;resize:vertical;line-height:1.65}
+input:focus,select:focus,textarea:focus{
+  border-color:rgba(0,113,227,.48);
+  box-shadow:0 0 0 4px rgba(0,113,227,.10);
+  background:#fff;
+}
+.btn:disabled{opacity:.48;cursor:not-allowed;transform:none!important}.btn{
+  border:0;
+  border-radius:999px;
+  padding:13px 20px;
+  font-weight:700;
+  font-size:15px;
+  transition:transform .18s ease,box-shadow .18s ease,background .18s ease;
+}
+.btn:hover{transform:translateY(-1px)}
+.btn:active{transform:translateY(0) scale(.98)}
+.primary{background:var(--black);color:#fff;box-shadow:0 10px 22px rgba(0,0,0,.14)}
+.primary:hover{background:#2b2b2f}
+.soft{background:rgba(255,255,255,.9);color:var(--text);border:1px solid var(--line);box-shadow:var(--shadow-soft)}
+.soft:hover{background:#fff}
+.blue{background:var(--blue);color:#fff;box-shadow:0 10px 22px rgba(0,113,227,.2)}
+.danger{background:#fff1f2;color:var(--red)}
+.icon-btn{width:44px;height:44px;padding:0;display:grid;place-items:center;border-radius:50%}
+
+header{
+  height:78px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 28px;
+  position:sticky;top:0;z-index:20;
+  background:rgba(245,245,247,.74);
+  backdrop-filter:blur(24px) saturate(180%);
+  border-bottom:1px solid rgba(29,29,31,.06);
+}
+.brand{display:flex;gap:13px;align-items:center}
+.brand h2{margin:0;font-size:20px;letter-spacing:-.4px}
+.brand small{display:block;color:var(--muted);margin-top:3px}
+.header-actions{display:flex;gap:10px;align-items:center}
+.profile-chip{
+  display:flex;align-items:center;gap:10px;
+  padding:7px 13px 7px 7px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.82);
+  border-radius:999px;
+  box-shadow:var(--shadow-soft);
+}
+.avatar{
+  width:34px;height:34px;border-radius:50%;
+  display:grid;place-items:center;
+  background:linear-gradient(145deg,#27272a,#000);
+  color:#fff;font-weight:800;
+}
+
+.shell{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:calc(100vh - 78px)}
+aside{padding:22px 16px}
+.nav-panel{
+  position:sticky;top:100px;
+  padding:10px;
+  background:rgba(255,255,255,.72);
+  backdrop-filter:blur(22px) saturate(170%);
+  border:1px solid rgba(255,255,255,.8);
+  border-radius:24px;
+  box-shadow:var(--shadow-soft);
+}
+.nav{
+  width:100%;border:0;background:transparent;
+  border-radius:15px;padding:14px 15px;
+  text-align:left;color:#5f5f64;font-weight:700;font-size:15px;margin:3px 0;
+  transition:.18s ease;
+}
+.nav:hover{background:rgba(0,0,0,.035);color:var(--text)}
+.nav.active{background:var(--black);color:#fff;box-shadow:0 8px 20px rgba(0,0,0,.14)}
+main{padding:34px 34px 60px;max-width:1500px;width:100%;margin:auto}
+.page{display:none}.page.active{display:block}
+
+.hero{
+  position:relative;overflow:hidden;
+  min-height:230px;
+  display:flex;justify-content:space-between;align-items:flex-end;gap:24px;
+  padding:38px;
+  border-radius:var(--radius-xl);
+  background:linear-gradient(145deg,#fff 0%,#fbfbfd 54%,#edf4ff 100%);
+  border:1px solid rgba(255,255,255,.9);
+  box-shadow:var(--shadow);
+}
+.hero:after{
+  content:"";position:absolute;width:330px;height:330px;border-radius:50%;
+  right:-90px;top:-160px;
+  background:linear-gradient(145deg,rgba(0,113,227,.18),rgba(255,255,255,0));
+  filter:blur(4px);
+}
+.hero-copy{position:relative;z-index:1;max-width:740px}
+.eyebrow{font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--blue);margin-bottom:13px}
+.hero h1{font-size:44px;line-height:1.08;letter-spacing:-2px;margin:0 0 14px}
+.hero p{font-size:17px;line-height:1.65;margin:0;color:var(--muted)}
+.hero .actions{position:relative;z-index:1}
+
+.grid{display:grid;gap:18px}.g4{grid-template-columns:repeat(4,1fr)}.g2{grid-template-columns:repeat(2,1fr)}
+.card{
+  background:rgba(255,255,255,.88);
+  backdrop-filter:blur(16px) saturate(150%);
+  border:1px solid rgba(255,255,255,.86);
+  border-radius:var(--radius-lg);
+  padding:24px;
+  margin-top:18px;
+  box-shadow:var(--shadow-soft);
+}
+.metric-card{min-height:142px;display:flex;flex-direction:column;justify-content:space-between}
+.metric-label{font-size:13px;font-weight:700;color:var(--muted)}
+.metric{font-size:34px;font-weight:780;letter-spacing:-1.1px;margin-top:22px}
+.title{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
+.title h3{margin:0;font-size:21px;letter-spacing:-.5px}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+.row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.row2{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.scroll{overflow:auto}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:14px}
+th,td{padding:15px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+tr:last-child td{border-bottom:0}
+.badge{display:inline-block;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:800;background:#f1f1f3;color:#505055}
+.buy{background:#fff0f1;color:var(--red)}.sell{background:#eaf8ef;color:var(--green)}
+.empty{text-align:center;color:var(--muted);padding:34px}
+.notice{background:#f0f7ff;color:#245a96;padding:14px 16px;border-radius:16px;margin:12px 0;line-height:1.6}
+.lesson{
+  background:linear-gradient(145deg,#111113,#2b2b30);
+  color:#fff;
+  border:0;
+  box-shadow:0 24px 55px rgba(0,0,0,.18);
+}
+.lesson strong{color:#8ec5ff}.lesson .muted{color:rgba(255,255,255,.62)}
+.lesson-note{
+  margin-top:18px;padding-top:18px;border-top:1px solid var(--line)
+}
+.lesson-note textarea{background:#fafafa}
+.note-status{font-size:12px;color:var(--muted);margin-top:8px}
+
+.note-workspace{display:grid;grid-template-columns:330px minmax(0,1fr);gap:18px;align-items:start}
+.note-sidebar{position:sticky;top:100px}
+.filter-stack{display:grid;gap:12px}
+.filter-chips{display:flex;gap:8px;flex-wrap:wrap}
+.filter-chip{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:999px;padding:9px 13px;font-size:13px;font-weight:750;cursor:pointer;transition:.18s ease}
+.filter-chip:hover{color:var(--text);transform:translateY(-1px)}
+.filter-chip.active{background:var(--black);color:#fff;border-color:var(--black);box-shadow:0 8px 20px rgba(0,0,0,.12)}
+.filter-summary{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 0;color:var(--muted);font-size:13px}
+.calendar{margin-top:14px;border:1px solid var(--line);border-radius:20px;padding:14px;background:rgba(255,255,255,.82)}
+.calendar-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.calendar-title{font-weight:800;letter-spacing:-.3px}
+.calendar-nav{width:34px;height:34px;border:0;border-radius:50%;background:#f1f1f3;font-size:18px;cursor:pointer}
+.calendar-week,.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.calendar-week span{text-align:center;color:var(--muted);font-size:11px;font-weight:800;padding:5px 0}
+.calendar-day{position:relative;min-height:42px;border:0;border-radius:12px;background:transparent;color:var(--text);font-size:13px;cursor:pointer}
+.calendar-day:hover{background:#f1f1f3}
+.calendar-day.other{color:#b4b4b8}
+.calendar-day.has-note:after{content:"";position:absolute;width:5px;height:5px;border-radius:50%;background:var(--blue);left:50%;bottom:5px;transform:translateX(-50%)}
+.calendar-day.selected{background:var(--black);color:#fff}
+.calendar-day.selected:after{background:#fff}
+.calendar-day.today{box-shadow:inset 0 0 0 1.5px var(--blue)}
+.note-list-card{margin-top:0}
+.note-item{padding:20px 0;border-bottom:1px solid var(--line)}
+.note-item:last-child{border-bottom:0}
+.note-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.note-count{font-weight:800;color:var(--text)}
+
+.chatgpt-card{position:relative;overflow:hidden;background:linear-gradient(145deg,#fff,#f5f8ff);border:1px solid rgba(0,113,227,.12)}
+.chatgpt-card:after{content:"";position:absolute;width:220px;height:220px;border-radius:50%;right:-90px;top:-120px;background:radial-gradient(circle,rgba(0,113,227,.18),transparent 67%);pointer-events:none}
+.chatgpt-row{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end}
+.chatgpt-row .btn{white-space:nowrap}
+.prompt-preview{margin-top:10px;color:var(--muted);font-size:12px;line-height:1.6}
+.lesson-practice{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}
+.practice-box{padding:14px;border-radius:16px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1)}
+.practice-box b{display:block;color:#fff;margin-bottom:6px}.practice-box span{color:rgba(255,255,255,.68);font-size:13px;line-height:1.55}
+
+.modal{
+  display:none;position:fixed;inset:0;z-index:40;
+  align-items:center;justify-content:center;padding:24px;
+  background:rgba(0,0,0,.28);
+  backdrop-filter:blur(12px);
+}
+.modal.open{display:flex}
+.modal-box{
+  width:min(820px,100%);max-height:90vh;overflow:auto;
+  background:rgba(255,255,255,.96);
+  border:1px solid rgba(255,255,255,.92);
+  border-radius:30px;
+  padding:28px;
+  box-shadow:0 30px 100px rgba(0,0,0,.22);
+}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.modal-head h3{font-size:24px;letter-spacing:-.7px;margin:0}
+.modal-head button{border:0;background:#f0f0f2;border-radius:50%;width:42px;height:42px;font-size:21px}
+.toast{
+  display:none;position:fixed;right:24px;bottom:24px;z-index:60;
+  background:rgba(20,20,22,.94);color:#fff;padding:14px 18px;border-radius:999px;
+  box-shadow:0 14px 34px rgba(0,0,0,.2);backdrop-filter:blur(18px)
+}
+
+@media(max-width:1050px){
+  .shell{grid-template-columns:1fr}
+  aside{padding:10px 14px 0;overflow:auto}
+  .nav-panel{position:static;display:flex;gap:7px;overflow:auto;padding:8px}
+  .nav{min-width:132px;text-align:center}
+  .g4{grid-template-columns:repeat(2,1fr)}
+  .g2,.row,.row2,.note-workspace{grid-template-columns:1fr}
+  .note-sidebar{position:static}
+  .hero{align-items:flex-start;flex-direction:column}
+}
+@media(max-width:650px){
+  header{padding:0 14px}
+  .brand small{display:none}
+  .profile-chip span{display:none}
+  main{padding:20px 14px 48px}
+  .hero{padding:26px;min-height:260px}
+  .hero h1{font-size:36px}
+  .g4{grid-template-columns:1fr}
+  .btn{width:100%}
+  .header-actions .btn{width:auto}
+  .card{padding:20px}
+  .chatgpt-row,.lesson-practice{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<section id="auth" class="auth">
+  <div class="auth-card">
+    <div class="logo">↗</div>
+    <h1>交易成长日志</h1>
+    <p class="muted">记录判断、交易与学习，让每一次决策都留下可以复盘的依据。</p>
+    <label>邮箱</label><input id="email" type="email" autocomplete="email">
+    <label>密码</label><input id="password" type="password" autocomplete="current-password">
+    <div class="row2" style="margin-top:20px">
+      <button class="btn primary" onclick="signIn()">登录</button>
+      <button class="btn soft" onclick="signUp()">注册</button>
+    </div>
+    <p id="authMsg" class="muted"></p>
+  </div>
+</section>
+
+<section id="app" class="hidden">
+<header>
+  <div class="brand">
+    <div class="logo" style="width:42px;height:42px;border-radius:14px">↗</div>
+    <div><h2>交易成长日志</h2><small id="headerGreeting">专注记录，不追逐噪音</small></div>
+  </div>
+  <div class="header-actions">
+    <button class="profile-chip" onclick="openProfile()" aria-label="设置昵称">
+      <span class="avatar" id="profileAvatar">投</span>
+      <span id="profileNickname">投资者</span>
+    </button>
+    <button class="btn soft" onclick="signOut()">退出</button>
+  </div>
+</header>
+<div class="shell">
+  <aside><div class="nav-panel">
+    <button class="nav active" data-page="home">今日首页</button>
+    <button class="nav" data-page="positions">我的持仓</button>
+    <button class="nav" data-page="flows">交易流程</button>
+    <button class="nav" data-page="notes">心得复盘</button>
+    <button class="nav" data-page="stocks">股票库</button>
+    <button class="nav" data-page="learning">每日学习</button>
+  </div></aside>
+  <main>
+    <section id="home" class="page active">
+      <div class="hero">
+        <div class="hero-copy">
+          <div class="eyebrow">Personal Investment Journal</div>
+          <h1 id="heroGreeting">你好，投资者。</h1>
+          <p>今天不交易，也可以有新的判断。把原因写下来，比频繁改变仓位更重要。</p>
+        </div>
+        <div class="actions">
+          <button class="btn primary" onclick="openNote()">写新心得</button>
+          <button class="btn soft" onclick="openBuy()">记录买入</button>
+        </div>
+      </div>
+
+      <div class="grid g4">
+        <div class="card metric-card"><span class="metric-label">当前持仓</span><div id="mPos" class="metric">0</div></div>
+        <div class="card metric-card"><span class="metric-label">持仓市值</span><div id="mValue" class="metric">¥0</div></div>
+        <div class="card metric-card"><span class="metric-label">累计已实现盈亏</span><div id="mProfit" class="metric">¥0</div></div>
+        <div class="card metric-card"><span class="metric-label">心得数量</span><div id="mNotes" class="metric">0</div></div>
+      </div>
+
+      <div class="grid g2">
+        <div class="card">
+          <div class="title">
+            <h3>今日学习卡</h3>
+            <div class="actions">
+              <button class="btn soft" onclick="prevLesson()">上一个</button>
+              <button class="btn primary" onclick="nextLesson()">下一个</button>
+            </div>
+          </div>
+          <div id="lessonMini"></div>
+          <div class="lesson-note">
+            <label>我的学习笔记</label>
+            <textarea id="lessonNoteMini" placeholder="写下你真正理解了什么、还存在哪些疑问……" oninput="syncLessonNote(this.value,'mini')"></textarea>
+            <div class="actions" style="margin-top:12px">
+              <button class="btn primary" onclick="saveLessonNote('mini')">保存到心得</button>
+            </div>
+            <div id="lessonNoteStatusMini" class="note-status"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="title"><h3>最近心得</h3><button class="btn soft" onclick="showPage('notes')">查看全部</button></div>
+          <div id="recentNotes"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="title"><h3>最近交易</h3><button class="btn soft" onclick="showPage('flows')">查看流程</button></div>
+        <div id="recentTrades"></div>
+      </div>
+    </section>
+
+    <section id="positions" class="page">
+      <div class="title"><h3>我的持仓</h3><button class="btn primary" onclick="openBuy()">记录买入</button></div>
+      <div class="card"><div id="positionsList"></div></div>
+    </section>
+
+    <section id="flows" class="page">
+      <div class="title"><h3>完整交易流程</h3></div>
+      <div class="card"><div id="flowsList"></div></div>
+    </section>
+
+    <section id="notes" class="page">
+      <div class="title"><div><div class="eyebrow">Review Library</div><h3>心得与复盘</h3></div><button class="btn primary" onclick="openNote()">写新心得</button></div>
+      <div class="note-workspace">
+        <div class="card note-sidebar">
+          <div class="title"><h3>筛选与日历</h3><button class="btn soft" style="padding:9px 13px;font-size:13px" onclick="clearNoteFilters()">清除</button></div>
+          <div class="filter-stack">
+            <input id="noteSearch" placeholder="搜索股票、标题或内容" oninput="renderNotes()">
+            <div>
+              <label>心得类别</label>
+              <div class="filter-chips">
+                <button class="filter-chip active" data-note-filter="all" onclick="setNoteCategory('all')">全部</button>
+                <button class="filter-chip" data-note-filter="learning" onclick="setNoteCategory('learning')">学习心得</button>
+                <button class="filter-chip" data-note-filter="trade" onclick="setNoteCategory('trade')">买卖复盘</button>
+                <button class="filter-chip" data-note-filter="general" onclick="setNoteCategory('general')">其他笔记</button>
+              </div>
+            </div>
+          </div>
+          <div class="calendar">
+            <div class="calendar-head">
+              <button class="calendar-nav" onclick="changeCalendarMonth(-1)" aria-label="上个月">‹</button>
+              <span id="calendarTitle" class="calendar-title"></span>
+              <button class="calendar-nav" onclick="changeCalendarMonth(1)" aria-label="下个月">›</button>
+            </div>
+            <div class="calendar-week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+            <div id="noteCalendar" class="calendar-grid"></div>
+          </div>
+          <div class="filter-summary"><span id="noteFilterSummary">显示全部心得</span><span id="noteResultCount" class="note-count">0条</span></div>
+        </div>
+        <div class="card note-list-card"><div id="notesList"></div></div>
+      </div>
+    </section>
+
+    <section id="stocks" class="page">
+      <div class="title"><h3>股票库</h3><button class="btn primary" onclick="openStock()">添加股票</button></div>
+      <div class="card">
+        <div class="notice">输入6位股票代码后，系统会联网匹配公司名称、官方行业和市场。你的自定义板块仍由你自己填写。</div>
+        <div id="stocksList"></div>
+      </div>
+      <div class="card">
+        <div class="title"><h3>公司与行业新闻</h3></div>
+        <div class="row2">
+          <div><label>选择股票</label><select id="newsStock"></select></div>
+          <div><label>附加关键词</label><input id="newsKeyword" placeholder="例如：业绩、公告、回购、减持"></div>
+        </div>
+        <div class="actions" style="margin-top:14px">
+          <button class="btn primary" onclick="searchCompanyNews()">公司新闻</button>
+          <button class="btn soft" onclick="searchIndustryNews()">行业新闻</button>
+          <button class="btn soft" onclick="searchEastmoney()">东方财富</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="learning" class="page">
+      <div class="title">
+        <h3>金融基础知识</h3>
+        <div class="actions"><button class="btn soft" onclick="prevLesson()">上一个</button><button class="btn primary" onclick="nextLesson()">下一个知识点</button></div>
+      </div>
+      <div class="card lesson" id="lessonFull"></div>
+      <div class="card"><h3>为什么推荐给你</h3><p id="lessonWhy" class="muted"></p></div>
+      <div class="card chatgpt-card">
+        <div class="title"><div><div class="eyebrow">Ask ChatGPT</div><h3>一键深入解释</h3></div><span class="muted">会根据当前知识点生成适合金融小白的提问</span></div>
+        <div class="chatgpt-row">
+          <div><label>你还想问什么</label><input id="chatgptQuestion" placeholder="例如：结合昆药集团，怎么判断放量上涨是否健康？" onkeydown="if(event.key==='Enter')askChatGPT()"></div>
+          <button class="btn blue" onclick="askChatGPT()">用 ChatGPT 深入学习</button>
+        </div>
+        <div id="chatgptPromptPreview" class="prompt-preview"></div>
+      </div>
+      <div class="card">
+        <div class="title"><h3>我的学习笔记</h3><span class="muted">保存后会自动出现在“心得复盘”</span></div>
+        <textarea id="lessonNoteFull" placeholder="用自己的语言复述概念，并写下与真实市场的联系……" oninput="syncLessonNote(this.value,'full')"></textarea>
+        <div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveLessonNote('full')">保存到心得</button></div>
+        <div id="lessonNoteStatusFull" class="note-status"></div>
+      </div>
+    </section>
+  </main>
+</div>
+</section>
+
+<div class="modal" id="profileModal"><div class="modal-box" style="width:min(520px,100%)">
+  <div class="modal-head"><h3>个人资料</h3><button onclick="closeM('profileModal')">×</button></div>
+  <p class="muted">昵称会显示在首页和顶部栏，邮箱不会再出现在登录后的界面中。</p>
+  <label>昵称</label><input id="nicknameInput" maxlength="24" placeholder="例如：utterson">
+  <button class="btn primary" style="margin-top:18px" onclick="saveNickname()">保存昵称</button>
+</div></div>
+
+<div class="modal" id="stockModal"><div class="modal-box">
+  <div class="modal-head"><h3>添加股票 / 记录首次买入</h3><button onclick="closeM('stockModal')">×</button></div>
+  <div class="row">
+    <div><label>股票代码</label><input id="sCode" placeholder="输入6位代码，例如 600422" inputmode="numeric" maxlength="9"></div>
+    <div><label>股票名称</label><input id="sName" placeholder="输入代码后自动出现"></div>
+    <div><label>我的自定义板块</label><input id="sSector" placeholder="例如：创新药"></div>
+  </div>
+  <div id="stockLookupStatus" class="notice hidden"></div>
+  <div class="row2">
+    <div><label>官方行业</label><input id="sIndustry" placeholder="输入代码后自动出现"></div>
+    <div><label>市场</label><select id="sMarket"><option>上海主板</option><option>深圳主板</option><option>创业板</option><option>科创板</option><option>北交所</option><option>港股</option><option>美股</option></select></div>
+  </div>
+  <label style="margin-top:15px"><input id="firstBuyToggle" type="checkbox" style="width:auto" onchange="toggleFirstBuy()"> 同时记录首次买入</label>
+  <div id="firstBuyFields" class="hidden">
+    <div class="row"><div><label>购入价格</label><input id="sBuyPrice" type="number" step="0.01"></div><div><label>购入数量</label><input id="sBuyQty" type="number" value="100"></div><div><label>手续费</label><input id="sBuyFee" type="number" step="0.01" value="0"></div></div>
+    <div class="row2"><div><label>购入日期</label><input id="sBuyDate" type="date"></div><div><label>购入时间</label><input id="sBuyTime" type="time"></div></div>
+    <label>购入原因</label><textarea id="sBuyReason"></textarea>
+  </div>
+  <button class="btn primary" style="margin-top:18px" onclick="saveManualStock()">保存</button>
+</div></div>
+
+<div class="modal" id="buyModal"><div class="modal-box">
+  <div class="modal-head"><h3>记录买入</h3><button onclick="closeM('buyModal')">×</button></div>
+  <div class="row"><div><label>股票</label><select id="bStock"></select></div><div><label>日期</label><input id="bDate" type="date"></div><div><label>时间</label><input id="bTime" type="time"></div></div>
+  <div class="row"><div><label>买入价</label><input id="bPrice" type="number" step="0.01"></div><div><label>数量</label><input id="bQty" type="number" value="100"></div><div><label>手续费</label><input id="bFee" type="number" step="0.01" value="0"></div></div>
+  <label>买入原因</label><textarea id="bReason"></textarea>
+  <button id="saveBuyBtn" class="btn primary" onclick="saveBuy()">保存买入</button>
+</div></div>
+
+<div class="modal" id="sellModal"><div class="modal-box">
+  <div class="modal-head"><h3 id="sellTitle">记录卖出</h3><button onclick="closeM('sellModal')">×</button></div><input id="sellPos" type="hidden">
+  <div class="row"><div><label>日期</label><input id="xDate" type="date"></div><div><label>时间</label><input id="xTime" type="time"></div><div><label>卖出价</label><input id="xPrice" type="number" step="0.01"></div></div>
+  <div class="row2"><div><label>卖出数量</label><input id="xQty" type="number"></div><div><label>手续费</label><input id="xFee" type="number" step="0.01" value="0"></div></div>
+  <label>卖出原因</label><textarea id="xReason"></textarea>
+  <label>这笔交易最大的心得</label><textarea id="xLesson"></textarea>
+  <button id="saveSellBtn" class="btn primary" onclick="saveSell()">完成卖出</button>
+</div></div>
+
+<div class="modal" id="noteModal"><div class="modal-box">
+  <div class="modal-head"><h3 id="noteModalTitle">写新心得</h3><button onclick="closeM('noteModal')">×</button></div><input id="nId" type="hidden">
+  <div class="row"><div><label>日期</label><input id="nDate" type="date"></div><div><label>类型</label><select id="nType"><option>每日心得</option><option>公司研究</option><option>市场观察</option><option>学习笔记</option><option>买入复盘</option><option>卖出复盘</option><option>买卖复盘</option></select></div><div><label>关联股票</label><select id="nStock"><option value="">不关联</option></select></div></div>
+  <label>标题</label><input id="nTitle">
+  <label>内容</label><textarea id="nContent"></textarea>
+  <button class="btn primary" onclick="saveNote()">保存心得</button>
+</div></div>
+
+<div class="modal" id="tradeEditModal"><div class="modal-box">
+  <div class="modal-head"><div><div class="eyebrow">交易纠错</div><h3 id="tradeEditTitle">修改交易</h3></div><button onclick="closeM('tradeEditModal')">×</button></div>
+  <input id="teId" type="hidden">
+  <input id="tePositionId" type="hidden">
+  <div class="row">
+    <div><label>交易类型</label><select id="teType"><option value="buy">买入</option><option value="sell">卖出</option></select></div>
+    <div><label>日期</label><input id="teDate" type="date"></div>
+    <div><label>时间</label><input id="teTime" type="time"></div>
+  </div>
+  <div class="row">
+    <div><label>价格</label><input id="tePrice" type="number" step="0.001"></div>
+    <div><label>数量</label><input id="teQty" type="number" step="1"></div>
+    <div><label>手续费</label><input id="teFee" type="number" step="0.01"></div>
+  </div>
+  <label>原因</label><textarea id="teReason"></textarea>
+  <label>交易心得</label><textarea id="teLesson"></textarea>
+  <div class="actions" style="margin-top:18px">
+    <button id="saveTradeEditBtn" class="btn primary" onclick="saveTradeEdit()">保存修改</button>
+    <button class="btn danger" onclick="deleteTradeFromEditor()">删除这条交易</button>
+  </div>
+  <div class="notice">修改或删除交易后，系统会根据该持仓的全部买卖记录重新计算剩余股数。</div>
+</div></div>
+
+<div class="modal" id="positionEditModal"><div class="modal-box">
+  <div class="modal-head"><div><div class="eyebrow">持仓纠错</div><h3 id="positionEditTitle">手动修正持仓</h3></div><button onclick="closeM('positionEditModal')">×</button></div>
+  <input id="peId" type="hidden">
+  <label>当前剩余股数</label><input id="peQty" type="number" step="1">
+  <div class="notice">这项功能只修改当前持仓数量，不会自动创造新的交易记录。优先建议修改或删除错误的买卖记录。</div>
+  <button id="savePositionEditBtn" class="btn primary" onclick="savePositionEdit()">保存持仓修正</button>
+</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+let sb,user,stocks=[],positions=[],trades=[],notes=[];
+let submittingSell=false;
+let submittingBuy=false;
+let nickname='投资者';
+let lessonIndex=Number(localStorage.getItem('lessonIndex')||0);
+let noteCategory='all';
+let selectedNoteDate='';
+let calendarCursor=new Date();
+let stockLookupTimer=null;
+const lessons=[
+ ['集合竞价 Call Auction','集合竞价是开盘前把买卖委托集中撮合、形成开盘价的阶段。','它能帮助你观察隔夜消息如何转化为真实买卖意愿，但不能只凭高开或低开下结论。','某股因利好大幅高开，但竞价成交额很小，开盘后可能迅速回落；高开同时竞价放量，信号才更有参考价值。','先学会看开盘前的资金态度，避免一看到高开就冲进去。','观察竞价成交额与昨日成交额的比例','等待开盘后5—15分钟确认承接','不要把高开直接等同于利好兑现'],
+ ['限价单 Limit Order','限价单是你指定最高买入价或最低卖出价的委托。','它能控制成交价格，但行情快速变化时可能无法成交。','你只愿意在14.80元买入诺德股份，就挂14.80元限价单；股价不回落到该价位，订单可能一直不成交。','新手先学会控制价格，再追求成交速度。','买入价不要随情绪不断上调','下单前确认价格与股数','未成交不代表判断错误'],
+ ['市价思维与滑点 Slippage','滑点是预期成交价与实际成交价之间的差异。','小盘股、快速上涨或下跌时，买卖盘不够厚，实际成交可能比你看到的价格更差。','屏幕显示15.60元，但你急着卖出1000股，可能分别成交在15.59、15.58甚至更低。','交易成本不只有手续费，成交质量也会影响收益。','查看五档盘口深度','避免在剧烈波动时追单','大额订单可拆分执行'],
+ ['T+1交易制度','A股普通股票当天买入后，通常要到下一个交易日才能卖出。','它意味着日内判断错误时无法立即退出，因此仓位和买点必须更谨慎。','上午追高买入后下午跳水，你不能当天卖出，只能承担隔夜风险。','理解交易规则，是风险管理的第一步。','买入前考虑最坏隔夜情况','不要把全部资金一次打满','ETF和部分品种规则可能不同'],
+ ['仓位 Position Size','仓位是某只股票占账户总资金的比例。','仓位决定同样的涨跌会给账户造成多大影响。','账户10万元，买入昆药2万元，单只股票仓位为20%；即使下跌10%，账户影响约2%。','基金经理先控制风险暴露，再考虑收益。','单只股票设置上限','高不确定性用更小仓位','相关行业持仓要合并看风险'],
+ ['分批建仓 Scale In','分批建仓是把计划投入的资金拆成多次买入。','它能降低一次买在局部高点的风险，并让后续信息有调整空间。','计划买300股，可先买100股观察，基本面和价格确认后再加仓。','它不是机械补仓，而是让判断逐步接受市场验证。','提前写好每次加仓条件','价格下跌不等于必须补仓','逻辑变差时停止加仓'],
+ ['加仓与补仓','加仓是因为判断被进一步验证而增加仓位；补仓常指下跌后为了摊低成本继续买入。','两者看似都是继续买，但背后的逻辑完全不同。','业绩超预期、放量突破后加仓有新证据；仅因股价跌了20%补仓，可能是在放大错误。','机构资金会问“新信息是否提高了胜率”，而不是只看成本价。','写出新增证据','重新计算总仓位','不以回本为唯一目标'],
+ ['减仓 Partial Exit','减仓是卖出部分持仓，而不是一次全部退出。','它可以在不完全放弃判断的情况下回收风险敞口。','股价快速上涨到估值偏高区，卖出三分之一，剩余仓位继续观察。','基金经理常用减仓管理不确定性，而不是非黑即白地全买全卖。','明确减仓比例','记录触发原因','减仓后重新设置观察条件'],
+ ['止损 Stop Loss','止损是预先规定判断失败时如何退出。','它限制单次错误对账户造成的伤害。','20元买入，若跌破18.8元且公司逻辑没有改善，就重新评估或退出。','止损点不是随便画线，而是判断失效的位置。','区分价格止损与逻辑止损','下单前写清失败条件','不要亏损后临时放宽底线'],
+ ['止盈 Take Profit','止盈是达到目标或赔率下降时，主动兑现部分或全部收益。','盈利不代表风险消失，涨得越多可能估值越贵、预期越满。','买入时认为合理价值20元，涨到22元且基本面没有上修，继续持有的风险收益比可能变差。','机构关注未来回报，不会因为已经赚钱就无限持有。','比较当前价与新合理价值','区分趋势止盈与估值止盈','避免只因小幅盈利就过早卖出'],
+ ['风险收益比 Risk-Reward Ratio','风险收益比比较计划亏损与潜在收益。','它让你在下单前判断这笔交易值不值得承担风险。','买入10元，失效位9.5元，目标12元：每股风险0.5元，潜在收益2元，收益风险比约4:1。','即使胜率一般，良好的盈亏结构也可能让策略长期有效。','先写失效位再写目标位','计入手续费与滑点','目标价必须有基本面或技术依据'],
+ ['成交量 Volume','成交量是某段时间内实际成交的股票数量或金额。','它帮助判断价格变化背后有没有真实资金参与。','上涨放量通常比缩量上涨更有确认度；但高位巨量也可能意味着分歧和派发。','成交量必须结合位置、趋势和消息理解。','比较近5日与20日均量','观察放量后能否继续上涨','区分上涨放量和下跌放量'],
+ ['量价背离 Price-Volume Divergence','量价背离是价格走势和成交量变化不一致。','它可能提示原趋势的推动力正在减弱。','股价创新高但成交量持续下降，说明追价资金减少；不过背离只是预警，不等于马上下跌。','机构会把它当作风险提示，再结合基本面和资金行为验证。','不把背离当作单独买卖信号','确认是否处于关键高位','观察随后是否出现破位'],
+ ['换手率 Turnover Rate','换手率是成交股数占流通股本的比例。','它反映筹码交换活跃程度。','低位高换手可能是资金重新定价；高位高换手也可能是老资金卖给追涨者。','同样的换手率，在不同市值和位置上含义不同。','与股票历史换手率比较','结合龙虎榜和成交额','警惕异常高换手后的波动'],
+ ['高开与低开 Gap','高开或低开是今日开盘价与昨日收盘价存在明显差距。','缺口反映隔夜信息和情绪，但开盘后的承接更重要。','利好高开8%后一路回落，说明追涨盘被卖盘压制；低开后快速收复，可能说明恐慌被承接。','不要只看开盘方向，要看开盘后的资金选择。','观察前15分钟走势','比较开盘成交额','检查是否有公告或行业新闻'],
+ ['支撑与压力 Support and Resistance','支撑是买盘可能增强的价格区域，压力是卖盘可能增加的区域。','它们是市场参与者共同记忆形成的区域，不是绝对精确的单一价格。','前期密集成交区、前高前低和重要均线常成为支撑或压力。','机构会看这里是否有足够流动性完成建仓或减仓。','用区域而不是一条线','突破后看是否回踩确认','跌破支撑时重新检查逻辑'],
+ ['突破 Breakout','突破是价格越过长期压制区域，并可能进入新的交易区间。','有效突破通常需要成交量、收盘位置和后续走势确认。','盘中一度突破前高但收盘跌回去，可能是假突破；放量收盘站稳且次日不破，可信度更高。','不要只因为一根瞬间拉升就追买。','看收盘是否站稳','看成交量是否配合','提前规划假突破处理'],
+ ['回撤与回调 Pullback','回调是上涨趋势中的阶段性下跌，回撤是账户或价格从高点下降的幅度。','它帮助你区分正常波动和趋势真正恶化。','股票从20元涨到25元再回到23元，回撤8%；若基本面和趋势未坏，可能是正常消化。','基金经理会同时看个股回撤、组合回撤和市场环境。','记录最高净值','设定可承受最大回撤','回调买入也必须有确认条件'],
+ ['催化剂 Catalyst','催化剂是可能促使市场重新定价的事件。','好公司没有催化剂时可能长期横盘；催化剂也可能已被市场提前交易。','新药获批、业绩预告、政策变化或产品涨价都可能成为催化剂。','机构会判断事件的概率、时间和对利润的实际影响。','写出事件时间窗口','区分传闻与正式公告','估算对利润的量化影响'],
+ ['公告核验 Announcement Check','公告核验是以交易所和公司正式披露为准，验证新闻与传闻。','错误或断章取义的信息容易诱发追涨杀跌。','媒体称公司“获得大订单”，但公告显示订单金额只占年收入1%，影响可能有限。','专业投资者先找原始公告，再看媒体解读。','先看交易所原文','确认金额和时间','检查是否已有风险提示'],
+ ['业绩预期差 Earnings Surprise','预期差是实际结果与市场原先预期之间的差异。','股价交易的是变化，不只是绝对好坏。','利润增长20%看似不错，但市场原本期待增长50%，股价仍可能下跌。','基金经理会比较一致预期、公司指引和实际数据。','查历史预告与机构预期','关注收入质量和现金流','区分一次性收益'],
+ ['大盘与个股相对强弱 Relative Strength','相对强弱比较个股与指数或行业的表现。','它能帮助判断上涨来自公司自身还是整个市场普涨。','上证下跌2%时某股只跌0.3%，说明相对抗跌；但抗跌不等于一定上涨。','机构常通过相对表现寻找资金偏好的方向。','选择合适基准指数','比较5日和20日表现','结合成交量确认'],
+ ['交易前检查清单 Pre-Trade Checklist','交易前检查清单是下单前必须回答的一组问题。','它把冲动交易变成可复盘的决策流程。','下单前确认：为什么买、失效条件、仓位、目标、新闻来源、是否追高。','稳定流程比临场感觉更容易长期复制。','理由能否用一句话说明','最坏损失是多少','什么新信息会改变判断'],
+ ['交易后复盘 Post-Trade Review','交易后复盘是比较原计划与实际执行，而不是只看赚亏。','盈利的坏交易和亏损的好交易都存在。','追涨碰巧盈利，流程仍可能有问题；按计划止损亏损，可能是正确执行。','基金经理重视过程质量，因为单笔结果有随机性。','区分判断与执行','记录情绪和偏差','提炼下一次可执行改进']
+];
+const $=id=>document.getElementById(id);
+const d=()=>new Date().toISOString().slice(0,10);
+const tm=()=>new Date().toTimeString().slice(0,5);
+const money=v=>'¥'+Number(v||0).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+
+const requestId=()=>crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random().toString(36).slice(2)}`;
+function setBusy(buttonId,busy,busyText='保存中…'){
+ const btn=$(buttonId);if(!btn)return;
+ if(busy){btn.dataset.original=btn.textContent;btn.textContent=busyText;btn.disabled=true}
+ else{btn.textContent=btn.dataset.original||btn.textContent;btn.disabled=false}
+}
+async function recalcPosition(positionId){
+ const related=trades.filter(t=>t.position_id===positionId);
+ const bought=related.filter(t=>t.trade_type==='buy').reduce((a,t)=>a+Number(t.quantity||0),0);
+ const sold=related.filter(t=>t.trade_type==='sell').reduce((a,t)=>a+Number(t.quantity||0),0);
+ const remain=Math.max(0,bought-sold);
+ const {error}=await sb.from('positions').update({open_quantity:remain,status:remain===0?'closed':'open'}).eq('id',positionId);
+ if(error)throw error;
+}
+
+async function init(){
+  try{
+    const response=await fetch('/api/config');
+    const c=await response.json();
+    if(!response.ok||!c.supabaseUrl||!c.supabaseAnonKey)throw new Error(c.error||'云端配置未完成');
+    sb=supabase.createClient(c.supabaseUrl,c.supabaseAnonKey);
+    const {data}=await sb.auth.getSession();
+    if(data.session)await enter(data.session.user);
+    sb.auth.onAuthStateChange(async(event,session)=>{if(session)await enter(session.user);else leave()});
+  }catch(e){$('authMsg').textContent=e.message}
+}
+async function signUp(){
+  const {error}=await sb.auth.signUp({email:$('email').value,password:$('password').value});
+  $('authMsg').textContent=error?error.message:'注册成功，请按邮件提示完成验证。';
+}
+async function signIn(){
+  const {error}=await sb.auth.signInWithPassword({email:$('email').value,password:$('password').value});
+  $('authMsg').textContent=error?error.message:'';
+}
+async function signOut(){await sb.auth.signOut()}
+function leave(){$('auth').classList.remove('hidden');$('app').classList.add('hidden')}
+async function enter(u){
+  user=u;
+  nickname=(u.user_metadata?.nickname||'投资者').trim()||'投资者';
+  applyNickname();
+  $('auth').classList.add('hidden');$('app').classList.remove('hidden');
+  await loadAll();
+}
+function applyNickname(){
+  $('profileNickname').textContent=nickname;
+  $('profileAvatar').textContent=nickname.slice(0,1).toUpperCase();
+  $('headerGreeting').textContent=`你好，${nickname}`;
+  $('heroGreeting').textContent=`你好，${nickname}。`;
+}
+function openProfile(){$('nicknameInput').value=nickname;openM('profileModal')}
+async function saveNickname(){
+  const value=$('nicknameInput').value.trim();
+  if(!value)return alert('昵称不能为空');
+  const {data,error}=await sb.auth.updateUser({data:{nickname:value}});
+  if(error)return alert(error.message);
+  user=data.user;nickname=value;applyNickname();closeM('profileModal');toast('昵称已保存');
+}
+async function loadAll(){
+  const qs=await Promise.all([
+    sb.from('stocks').select('*').order('created_at'),
+    sb.from('positions').select('*').order('created_at',{ascending:false}),
+    sb.from('trades').select('*').order('trade_date',{ascending:false}),
+    sb.from('notes').select('*').order('note_date',{ascending:false})
+  ]);
+  for(const q of qs)if(q.error)return alert(q.error.message);
+  [stocks,positions,trades,notes]=qs.map(q=>q.data||[]);
+  if(notes[0]?.note_date&&!selectedNoteDate){const [y,m]=notes[0].note_date.split('-').map(Number);calendarCursor=new Date(y,m-1,1)}
+  render();
+}
+function showPage(id){
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));
+  $(id).classList.add('active');
+  document.querySelector(`[data-page="${id}"]`)?.classList.add('active');
+}
+document.querySelectorAll('.nav').forEach(x=>x.onclick=()=>showPage(x.dataset.page));
+function openM(id){$(id).classList.add('open')}
+function closeM(id){$(id).classList.remove('open')}
+function toast(t){$('toast').textContent=t;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',1900)}
+function toggleFirstBuy(){$('firstBuyFields').classList.toggle('hidden',!$('firstBuyToggle').checked)}
+function mapMarket(code,market){
+  if(market==='创业板')return '创业板';if(market==='科创板')return '科创板';if(market==='北交所')return '北交所';
+  if(market==='主板')return String(code).startsWith('6')?'上海主板':'深圳主板';
+  return String(code).startsWith('6')?'上海主板':'深圳主板';
+}
+function resetStockForm(){
+  ['sCode','sName','sSector','sIndustry','sBuyPrice','sBuyReason'].forEach(id=>$(id).value='');
+  $('sMarket').value='上海主板';$('stockLookupStatus').classList.add('hidden');$('firstBuyToggle').checked=false;toggleFirstBuy();
+}
+function openStock(){resetStockForm();$('sBuyDate').value=d();$('sBuyTime').value=tm();openM('stockModal')}
+async function lookupStockByCode(){
+  const raw=$('sCode').value.trim().toUpperCase();const clean=raw.replace(/\.(SH|SZ|BJ)$/,'');
+  if(!/^\d{6}$/.test(clean)){$('stockLookupStatus').classList.add('hidden');return}
+  const box=$('stockLookupStatus');box.classList.remove('hidden');box.textContent='正在匹配公司资料…';
+  try{
+    const r=await fetch('/api/stock?code='+encodeURIComponent(clean));const j=await r.json();
+    if(!r.ok)throw new Error(j.error||'未找到股票');
+    $('sCode').value=j.symbol||clean;$('sName').value=j.name||'';$('sIndustry').value=j.industry||'';$('sMarket').value=mapMarket(clean,j.market||'');
+    box.innerHTML=`已匹配：<strong>${esc(j.name||'')}</strong> · ${esc(j.industry||'行业未分类')} · ${esc(j.market||'')}`;
+  }catch(e){box.textContent='自动匹配失败：'+e.message+'。你仍然可以手动填写。'}
+}
+function scheduleStockLookup(){clearTimeout(stockLookupTimer);stockLookupTimer=setTimeout(lookupStockByCode,500)}
+function openBuy(){if(!stocks.length)return alert('请先添加股票');$('bDate').value=d();$('bTime').value=tm();openM('buyModal')}
+function openNote(){resetNote();openM('noteModal')}
+function resetNote(){$('nId').value='';$('noteModalTitle').textContent='写新心得';$('nDate').value=d();$('nTitle').value='';$('nContent').value='';$('nStock').value=''}
+async function saveManualStock(){
+  const code=$('sCode').value.trim().toUpperCase().replace(/\.(SH|SZ|BJ)$/,'');const name=$('sName').value.trim();
+  if(!/^\d{6}$/.test(code))return alert('请输入6位股票代码');if(!name)return alert('请等待自动匹配完成，或手动填写公司名称');
+  const {data:s,error}=await sb.from('stocks').insert({user_id:user.id,code,name,custom_sector:$('sSector').value.trim(),industry:$('sIndustry').value.trim(),market:$('sMarket').value,current_price:0}).select().single();
+  if(error)return alert(error.message);
+  if($('firstBuyToggle').checked){
+    const price=Number($('sBuyPrice').value),qty=Number($('sBuyQty').value),reason=$('sBuyReason').value.trim();
+    if(price<=0||qty<=0||!reason)return alert('首次买入信息不完整');
+    const {data:p,error:pe}=await sb.from('positions').insert({user_id:user.id,stock_id:s.id,open_quantity:qty,status:'open'}).select().single();if(pe)return alert(pe.message);
+    const {error:te}=await sb.from('trades').insert({user_id:user.id,position_id:p.id,stock_id:s.id,trade_type:'buy',trade_date:$('sBuyDate').value,trade_time:$('sBuyTime').value,price,quantity:qty,fee:Number($('sBuyFee').value||0),reason});if(te)return alert(te.message);
+  }
+  closeM('stockModal');await loadAll();toast('股票已保存');
+}
+async function saveBuy(){
+ if(submittingBuy)return;
+ const stockId=$('bStock').value,price=Number($('bPrice').value),qty=Number($('bQty').value),reason=$('bReason').value.trim();
+ if(!stockId||price<=0||qty<=0||!reason)return alert('请完整填写');
+ submittingBuy=true;setBusy('saveBuyBtn',true,'正在保存…');
+ try{
+  const clientRequestId=requestId();
+  const {data:p,error}=await sb.from('positions').insert({user_id:user.id,stock_id:stockId,open_quantity:qty,status:'open'}).select().single();
+  if(error)throw error;
+  const {error:tradeError}=await sb.from('trades').insert({
+   user_id:user.id,position_id:p.id,stock_id:stockId,trade_type:'buy',
+   trade_date:$('bDate').value,trade_time:$('bTime').value,price,quantity:qty,
+   fee:Number($('bFee').value||0),reason,client_request_id:clientRequestId
+  });
+  if(tradeError){
+   await sb.from('positions').delete().eq('id',p.id);
+   throw tradeError;
+  }
+  closeM('buyModal');$('bReason').value='';await loadAll();toast('买入已保存');
+ }catch(e){
+  if(String(e.message||'').includes('duplicate'))toast('这笔买入已经保存，请勿重复点击');
+  else alert(e.message||'保存失败');
+ }finally{
+  submittingBuy=false;setBusy('saveBuyBtn',false);
+ }
+}
+function posData(){return positions.map(p=>{
+  const s=stocks.find(x=>x.id===p.stock_id)||{},ts=trades.filter(t=>t.position_id===p.id),buy=ts.find(t=>t.trade_type==='buy')||{},sells=ts.filter(t=>t.trade_type==='sell');
+  const open=Number(p.open_quantity),realized=sells.reduce((a,t)=>a+(Number(t.price)-Number(buy.price))*Number(t.quantity)-Number(t.fee||0),0)-Number(buy.fee||0),mark=Number(s.close_price||s.current_price||buy.price||0);
+  return{...p,s,buy,sells,open,realized,value:mark*open,floating:(mark-Number(buy.price||0))*open};
+})}
+function openSell(id){const p=posData().find(x=>x.id===id);$('sellPos').value=id;$('sellTitle').textContent=`卖出 ${p.s.name}`;$('xDate').value=d();$('xTime').value=tm();$('xQty').value=p.open;$('xPrice').value=p.s.close_price||p.buy.price;openM('sellModal')}
+async function saveSell(){
+ if(submittingSell)return;
+ const p=posData().find(x=>x.id===$('sellPos').value),qty=Number($('xQty').value),price=Number($('xPrice').value),reason=$('xReason').value.trim();
+ if(!p||qty<=0||qty>p.open||price<=0||!reason)return alert('请检查卖出信息');
+ submittingSell=true;setBusy('saveSellBtn',true,'正在提交…');
+ try{
+  const clientRequestId=requestId();
+  const {error}=await sb.from('trades').insert({
+   user_id:user.id,position_id:p.id,stock_id:p.stock_id,trade_type:'sell',
+   trade_date:$('xDate').value,trade_time:$('xTime').value,price,quantity:qty,
+   fee:Number($('xFee').value||0),reason,lesson:$('xLesson').value.trim(),
+   client_request_id:clientRequestId
+  });
+  if(error)throw error;
+  const remain=p.open-qty;
+  const {error:positionError}=await sb.from('positions').update({open_quantity:remain,status:remain===0?'closed':'open'}).eq('id',p.id);
+  if(positionError)throw positionError;
+  await sb.from('notes').insert({
+   user_id:user.id,stock_id:p.stock_id,note_date:$('xDate').value,note_type:'卖出复盘',
+   title:`${p.s.name}卖出复盘`,content:`卖出原因：${reason}
+心得：${$('xLesson').value.trim()||'未填写'}`
+  });
+  closeM('sellModal');$('xReason').value='';$('xLesson').value='';await loadAll();toast('卖出已保存');
+ }catch(e){
+  if(String(e.message||'').includes('duplicate'))toast('这笔卖出已经保存，请勿重复点击');
+  else alert(e.message||'卖出保存失败');
+ }finally{
+  submittingSell=false;setBusy('saveSellBtn',false);
+ }
+}
+async function saveNote(){
+  const id=$('nId').value,payload={stock_id:$('nStock').value||null,note_date:$('nDate').value,note_type:$('nType').value,title:$('nTitle').value.trim()||$('nType').value,content:$('nContent').value.trim()};
+  if(!payload.content)return alert('请填写内容');
+  const q=id?sb.from('notes').update(payload).eq('id',id):sb.from('notes').insert({...payload,user_id:user.id});const {error}=await q;if(error)return alert(error.message);
+  closeM('noteModal');await loadAll();toast(id?'心得已修改':'心得已保存');
+}
+function editNote(id){const n=notes.find(x=>x.id===id);$('nId').value=n.id;$('noteModalTitle').textContent='修改心得';$('nDate').value=n.note_date;$('nType').value=n.note_type;$('nStock').value=n.stock_id||'';$('nTitle').value=n.title;$('nContent').value=n.content;openM('noteModal')}
+async function deleteNote(id){if(!confirm('确定删除这条心得？'))return;const {error}=await sb.from('notes').delete().eq('id',id);if(error)return alert(error.message);await loadAll();toast('已删除')}
+
+function openTradeEditor(id){
+ const t=trades.find(x=>x.id===id);if(!t)return;
+ const s=stocks.find(x=>x.id===t.stock_id)||{};
+ $('teId').value=t.id;$('tePositionId').value=t.position_id;
+ $('tradeEditTitle').textContent=`修改 ${s.name||''} ${t.trade_type==='buy'?'买入':'卖出'}`;
+ $('teType').value=t.trade_type;$('teDate').value=t.trade_date;$('teTime').value=String(t.trade_time||'').slice(0,5);
+ $('tePrice').value=t.price;$('teQty').value=t.quantity;$('teFee').value=t.fee||0;
+ $('teReason').value=t.reason||'';$('teLesson').value=t.lesson||'';
+ openM('tradeEditModal');
+}
+async function saveTradeEdit(){
+ const id=$('teId').value,positionId=$('tePositionId').value;
+ const payload={
+  trade_type:$('teType').value,trade_date:$('teDate').value,trade_time:$('teTime').value,
+  price:Number($('tePrice').value),quantity:Number($('teQty').value),fee:Number($('teFee').value||0),
+  reason:$('teReason').value.trim(),lesson:$('teLesson').value.trim()
+ };
+ if(payload.price<=0||payload.quantity<=0||!payload.reason)return alert('请完整填写交易信息');
+ setBusy('saveTradeEditBtn',true,'正在保存…');
+ try{
+  const {error}=await sb.from('trades').update(payload).eq('id',id);if(error)throw error;
+  trades=trades.map(t=>t.id===id?{...t,...payload}:t);
+  await recalcPosition(positionId);
+  closeM('tradeEditModal');await loadAll();toast('交易记录已修改');
+ }catch(e){alert(e.message||'修改失败')}
+ finally{setBusy('saveTradeEditBtn',false)}
+}
+async function deleteTradeFromEditor(){
+ const id=$('teId').value,positionId=$('tePositionId').value;
+ if(!confirm('确定删除这条交易记录？此操作会重新计算持仓。'))return;
+ const {error}=await sb.from('trades').delete().eq('id',id);if(error)return alert(error.message);
+ trades=trades.filter(t=>t.id!==id);
+ const remaining=trades.filter(t=>t.position_id===positionId);
+ if(!remaining.length){
+  await sb.from('positions').delete().eq('id',positionId);
+ }else{
+  await recalcPosition(positionId);
+ }
+ closeM('tradeEditModal');await loadAll();toast('错误交易已删除');
+}
+function openPositionEditor(id){
+ const p=positions.find(x=>x.id===id),s=stocks.find(x=>x.id===p?.stock_id)||{};if(!p)return;
+ $('peId').value=id;$('peQty').value=p.open_quantity;
+ $('positionEditTitle').textContent=`修正 ${s.name||''} 持仓`;
+ openM('positionEditModal');
+}
+async function savePositionEdit(){
+ const id=$('peId').value,qty=Number($('peQty').value);
+ if(qty<0)return alert('持仓不能小于0');
+ setBusy('savePositionEditBtn',true,'正在保存…');
+ try{
+  const {error}=await sb.from('positions').update({open_quantity:qty,status:qty===0?'closed':'open'}).eq('id',id);
+  if(error)throw error;
+  closeM('positionEditModal');await loadAll();toast('持仓数量已修正');
+ }catch(e){alert(e.message||'修正失败')}
+ finally{setBusy('savePositionEditBtn',false)}
+}
+
+function noteGroup(note){
+ const type=String(note.note_type||'');
+ if(type==='学习笔记'||type.includes('学习'))return 'learning';
+ if(type.includes('复盘'))return 'trade';
+ return 'general';
+}
+function setNoteCategory(category){
+ noteCategory=category;
+ document.querySelectorAll('[data-note-filter]').forEach(btn=>btn.classList.toggle('active',btn.dataset.noteFilter===category));
+ renderNotes();
+}
+function selectNoteDate(date){selectedNoteDate=selectedNoteDate===date?'':date;renderNotes()}
+function clearNoteFilters(){
+ noteCategory='all';selectedNoteDate='';$('noteSearch').value='';calendarCursor=new Date();
+ document.querySelectorAll('[data-note-filter]').forEach(btn=>btn.classList.toggle('active',btn.dataset.noteFilter==='all'));
+ renderNotes();
+}
+function changeCalendarMonth(delta){calendarCursor=new Date(calendarCursor.getFullYear(),calendarCursor.getMonth()+delta,1);renderNoteCalendar()}
+function localDateString(date){
+ const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,'0'),day=String(date.getDate()).padStart(2,'0');
+ return `${y}-${m}-${day}`;
+}
+function renderNoteCalendar(){
+ if(!$('noteCalendar'))return;
+ const year=calendarCursor.getFullYear(),month=calendarCursor.getMonth();
+ $('calendarTitle').textContent=`${year}年 ${month+1}月`;
+ const first=new Date(year,month,1);const mondayIndex=(first.getDay()+6)%7;
+ const start=new Date(year,month,1-mondayIndex);
+ const counts=notes.reduce((map,n)=>{map[n.note_date]=(map[n.note_date]||0)+1;return map},{});
+ const today=localDateString(new Date());
+ let cells='';
+ for(let i=0;i<42;i++){
+  const date=new Date(start);date.setDate(start.getDate()+i);
+  const key=localDateString(date);const other=date.getMonth()!==month;
+  const classes=['calendar-day',other?'other':'',counts[key]?'has-note':'',selectedNoteDate===key?'selected':'',today===key?'today':''].filter(Boolean).join(' ');
+  cells+=`<button class="${classes}" onclick="selectNoteDate('${key}')" title="${counts[key]?counts[key]+'条心得':'无心得'}">${date.getDate()}</button>`;
+ }
+ $('noteCalendar').innerHTML=cells;
+}
+function defaultChatGPTQuestion(){
+ const l=lessons[lessonIndex];
+ return `请结合A股真实交易场景，详细解释“${l[0]}”，重点讲我在实际下单、持仓和复盘时应该如何使用。`;
+}
+function updateChatGPTPrompt(){
+ if(!$('chatgptQuestion'))return;
+ if(!$('chatgptQuestion').value.trim())$('chatgptQuestion').value=defaultChatGPTQuestion();
+ const l=lessons[lessonIndex];
+ $('chatgptPromptPreview').textContent=`将附带：术语解释、真实例子、基金经理视角、常见错误和操作清单。当前知识点：${l[0]}`;
+}
+async function askChatGPT(){
+ const l=lessons[lessonIndex];const extra=$('chatgptQuestion').value.trim()||defaultChatGPTQuestion();
+ const prompt=`我是完全没有金融基础的新手。请系统解释：${l[0]}。\n\n当前课程说明：${l[1]}\n为什么重要：${l[2]}\n例子：${l[3]}\n\n我的问题：${extra}\n\n请按以下结构回答：1. 先解释所有术语；2. 用A股真实或典型案例；3. 说明实际下单、持仓、加减仓和复盘中怎么用；4. 从基金经理和机构资金角度分析；5. 指出常见误区；6. 最后给我一份下次交易前可以直接使用的检查清单。若涉及近期市场信息，请联网搜索并标注来源。`;
+ try{await navigator.clipboard?.writeText(prompt)}catch{}
+ window.open(`https://chatgpt.com/?q=${encodeURIComponent(prompt)}`,'_blank','noopener');
+ toast('已打开ChatGPT；问题也已复制到剪贴板');
+}
+function nextLesson(){lessonIndex=(lessonIndex+1)%lessons.length;localStorage.setItem('lessonIndex',lessonIndex);if($('chatgptQuestion'))$('chatgptQuestion').value='';renderLesson()}
+function prevLesson(){lessonIndex=(lessonIndex-1+lessons.length)%lessons.length;localStorage.setItem('lessonIndex',lessonIndex);if($('chatgptQuestion'))$('chatgptQuestion').value='';renderLesson()}
+function lessonTitle(){return `学习笔记｜${lessons[lessonIndex][0]}`}
+function currentLessonNote(){return notes.find(n=>n.note_type==='学习笔记'&&n.title===lessonTitle())}
+function syncLessonNote(value,source){if(source!=='mini')$('lessonNoteMini').value=value;if(source!=='full')$('lessonNoteFull').value=value}
+async function saveLessonNote(source){
+  const value=(source==='mini'?$('lessonNoteMini').value:$('lessonNoteFull').value).trim();if(!value)return alert('请先写下学习笔记');
+  const existing=currentLessonNote();const payload={stock_id:null,note_date:d(),note_type:'学习笔记',title:lessonTitle(),content:value};
+  const q=existing?sb.from('notes').update(payload).eq('id',existing.id):sb.from('notes').insert({...payload,user_id:user.id});const {error}=await q;if(error)return alert(error.message);
+  await loadAll();toast(existing?'学习笔记已更新':'学习笔记已保存到心得');
+}
+function render(){
+  const opts=stocks.map(s=>`<option value="${s.id}">${esc(s.code)} ${esc(s.name)}</option>`).join('');
+  $('bStock').innerHTML=opts;$('nStock').innerHTML='<option value="">不关联</option>'+opts;$('newsStock').innerHTML=opts;
+  const ps=posData(),open=ps.filter(x=>x.open>0);
+  $('mPos').textContent=open.length;$('mValue').textContent=money(open.reduce((a,x)=>a+x.value,0));$('mProfit').textContent=money(ps.reduce((a,x)=>a+x.realized,0));$('mNotes').textContent=notes.length;
+  $('positionsList').innerHTML=open.length?open.map(p=>`<div style="padding:18px 0;border-bottom:1px solid var(--line)"><div class="title"><div><strong style="font-size:18px">${esc(p.s.name)} ${esc(p.s.code)}</strong><div class="muted" style="margin-top:5px">${esc(p.s.custom_sector||p.s.industry||'')}</div></div><div class="actions"><button class="btn soft" onclick="openPositionEditor('${p.id}')">修正持仓</button><button class="btn primary" onclick="openSell('${p.id}')">卖出</button></div></div><div class="grid g4"><div><span class="muted">持仓 / 成本</span><br><strong>${p.open}股 / ${p.buy.price}</strong></div><div><span class="muted">今日开盘</span><br><strong>${p.s.open_price??'待更新'}</strong></div><div><span class="muted">今日收盘</span><br><strong>${p.s.close_price??'待更新'}</strong></div><div><span class="muted">浮动盈亏</span><br><strong style="color:${p.floating>=0?'var(--red)':'var(--green)'}">${money(p.floating)}</strong></div></div><div class="muted" style="margin-top:10px">行情日期：${p.s.price_date||'尚未同步'}</div></div>`).join(''):'<div class="empty">暂无持仓</div>';
+  $('flowsList').innerHTML=ps.length?ps.map(p=>`<div style="padding:18px 0;border-bottom:1px solid var(--line)"><strong style="font-size:18px">${esc(p.s.name)} ${esc(p.s.code)}</strong><p style="line-height:1.9"><span class="badge buy">买入</span> ${p.buy.trade_date||''} ${p.buy.trade_time||''} · ${p.buy.price||''}元 × ${p.buy.quantity||''}股<br><span class="muted">原因：${esc(p.buy.reason||'')}</span>${p.sells.map(t=>`<br><span class="badge sell">卖出</span> ${t.trade_date} ${t.trade_time} · ${t.price}元 × ${t.quantity}股<br><span class="muted">原因：${esc(t.reason)}</span>`).join('')}</p></div>`).join(''):'<div class="empty">暂无交易流程</div>';
+  $('stocksList').innerHTML=stocks.length?`<div class="scroll"><table><thead><tr><th>代码</th><th>名称</th><th>自定义板块</th><th>官方行业</th><th>市场</th><th>新闻</th></tr></thead><tbody>${stocks.map(s=>`<tr><td>${esc(s.code)}</td><td><strong>${esc(s.name)}</strong></td><td>${esc(s.custom_sector)}</td><td>${esc(s.industry)}</td><td>${esc(s.market)}</td><td><button class="btn soft" style="padding:8px 12px;font-size:13px" onclick="quickNews('${s.id}','company')">公司</button> <button class="btn soft" style="padding:8px 12px;font-size:13px" onclick="quickNews('${s.id}','industry')">行业</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">暂无股票</div>';
+  $('recentNotes').innerHTML=notes.slice(0,4).map(n=>`<div style="padding:12px 0;border-bottom:1px solid var(--line)"><strong>${esc(n.title)}</strong><div class="muted" style="margin-top:5px">${n.note_date} · ${esc(n.content).slice(0,76)}</div></div>`).join('')||'<div class="empty">今天写一条心得吧</div>';
+  const recent=trades.slice(0,6);$('recentTrades').innerHTML=recent.length?recent.map(t=>{const s=stocks.find(x=>x.id===t.stock_id)||{};return `<div style="padding:12px 0;border-bottom:1px solid var(--line)"><span class="badge ${t.trade_type==='buy'?'buy':'sell'}">${t.trade_type==='buy'?'买入':'卖出'}</span> <strong>${esc(s.name||'')}</strong><span class="muted"> · ${t.trade_date} ${t.trade_time} · ${t.price}元 × ${t.quantity}股</span></div>`}).join(''):'<div class="empty">暂无交易</div>';
+  renderNotes();renderLesson();
+}
+function renderNotes(){
+  const q=($('noteSearch')?.value||'').toLowerCase().trim();
+  const arr=notes.filter(n=>{
+    const s=stocks.find(x=>x.id===n.stock_id)||{};
+    const matchesText=!q||[n.title,n.content,s.name,s.code,n.note_type].join(' ').toLowerCase().includes(q);
+    const matchesCategory=noteCategory==='all'||noteGroup(n)===noteCategory;
+    const matchesDate=!selectedNoteDate||n.note_date===selectedNoteDate;
+    return matchesText&&matchesCategory&&matchesDate;
+  });
+  const categoryName={all:'全部心得',learning:'学习心得',trade:'买卖复盘',general:'其他笔记'}[noteCategory];
+  if($('noteFilterSummary'))$('noteFilterSummary').textContent=selectedNoteDate?`${categoryName} · ${selectedNoteDate}`:`显示${categoryName}`;
+  if($('noteResultCount'))$('noteResultCount').textContent=`${arr.length}条`;
+  $('notesList').innerHTML=arr.map(n=>{const s=stocks.find(x=>x.id===n.stock_id)||{};return `<div class="note-item"><div class="title"><div><div class="note-meta"><span class="badge">${esc(n.note_type)}</span>${s.name?`<span class="badge">${esc(s.name)}</span>`:''}<span class="muted">${n.note_date}</span></div><strong style="display:block;font-size:18px;margin-top:10px">${esc(n.title)}</strong></div><div class="actions"><button class="btn soft" onclick="editNote('${n.id}')">修改</button><button class="btn danger" onclick="deleteNote('${n.id}')">删除</button></div></div><p class="muted" style="line-height:1.75;margin-bottom:0">${esc(n.content).replace(/\n/g,'<br>')}</p></div>`}).join('')||'<div class="empty">这个筛选条件下暂无心得</div>';
+  renderNoteCalendar();
+}
+function selectedNewsStock(){return stocks.find(s=>s.id===$('newsStock')?.value)}
+function openSearch(query,engine='bing'){const encoded=encodeURIComponent(query);const url=engine==='eastmoney'?`https://so.eastmoney.com/web/s?keyword=${encoded}`:`https://www.bing.com/search?q=${encoded}`;window.open(url,'_blank','noopener')}
+function searchCompanyNews(){const s=selectedNewsStock();if(!s)return alert('请先选择股票');openSearch(`${s.code} ${s.name} 公司 新闻 公告 ${$('newsKeyword').value.trim()}`)}
+function searchIndustryNews(){const s=selectedNewsStock();if(!s)return alert('请先选择股票');openSearch(`${s.custom_sector||s.industry||s.name} 行业 最新 新闻 政策 产业链 ${$('newsKeyword').value.trim()}`)}
+function searchEastmoney(){const s=selectedNewsStock();if(!s)return alert('请先选择股票');openSearch(`${s.code} ${s.name} ${$('newsKeyword').value.trim()}`,'eastmoney')}
+function quickNews(id,type){const s=stocks.find(x=>x.id===id);if(!s)return;type==='industry'?openSearch(`${s.custom_sector||s.industry||s.name} 行业 最新 新闻 政策 产业链`):openSearch(`${s.code} ${s.name} 公司 新闻 公告`)}
+function renderLesson(){
+  const l=lessons[lessonIndex];
+  $('lessonMini').innerHTML=`<div class="eyebrow">${lessonIndex+1} / ${lessons.length}</div><strong style="font-size:22px">${l[0]}</strong><p>${l[1]}</p><p class="muted">${l[3]}</p>`;
+  $('lessonFull').innerHTML=`<div class="eyebrow" style="color:#8ec5ff">Lesson ${lessonIndex+1}</div><strong style="font-size:18px">${l[0]}</strong><h3 style="font-size:30px;letter-spacing:-1px;margin:15px 0">${l[1]}</h3><p><b>为什么重要：</b>${l[2]}</p><p><b>真实例子：</b>${l[3]}</p><div class="lesson-practice"><div class="practice-box"><b>操作前</b><span>${l[5]}</span></div><div class="practice-box"><b>操作中</b><span>${l[6]}</span></div><div class="practice-box"><b>复盘时</b><span>${l[7]}</span></div></div>`;
+  $('lessonWhy').textContent=l[4];
+  updateChatGPTPrompt();
+  const existing=currentLessonNote();const value=existing?.content||'';
+  $('lessonNoteMini').value=value;$('lessonNoteFull').value=value;
+  const status=existing?`已保存于 ${existing.note_date}`:'尚未保存';$('lessonNoteStatusMini').textContent=status;$('lessonNoteStatusFull').textContent=status;
+}
+$('sCode').addEventListener('input',scheduleStockLookup);
+$('sCode').addEventListener('blur',lookupStockByCode);
+init();
+</script>
+</body>
+</html>
