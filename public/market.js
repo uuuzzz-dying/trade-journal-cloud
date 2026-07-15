@@ -23,6 +23,15 @@
     return Number.isFinite(number) ? number.toFixed(4) : fallback;
   }
 
+  function formatMoneyByCurrency(value, currency = 'CNY') {
+    const code = String(currency || 'CNY').toUpperCase();
+    const symbol = code === 'USD' ? '$' : code === 'HKD' ? 'HK$' : code === 'CNY' ? '¥' : `${code} `;
+    return `${symbol}${Number(value || 0).toLocaleString('zh-CN', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })}`;
+  }
+
   function ensureMarketStyles() {
     if (document.querySelector('link[data-market-styles]')) return;
     const link = document.createElement('link');
@@ -573,17 +582,21 @@
 
   async function saveStockEditor() {
     const id = byId('seId').value;
+    const editorMarketType = inferMarketType(byId('seCode').value, byId('seMarket').value);
+    let editorInfoSource = byId('seInfoSource').value;
+    if (editorMarketType !== 'a' && editorInfoSource !== 'manual') editorInfoSource = 'yahoo';
+
     const payload = {
       name: byId('seName').value.trim(),
       custom_sector: byId('seSector').value.trim(),
       industry: byId('seIndustry').value.trim(),
       market: byId('seMarket').value,
       exchange: byId('seExchange').value.trim(),
-      currency: byId('seCurrency').value.trim().toUpperCase() || 'CNY',
-      info_source: byId('seInfoSource').value,
+      currency: byId('seCurrency').value.trim().toUpperCase() || (editorMarketType === 'hk' ? 'HKD' : editorMarketType === 'us' ? 'USD' : 'CNY'),
+      info_source: editorInfoSource,
       quote_source: byId('seQuoteSource').value,
       quote_symbol: byId('seQuoteSymbol').value.trim().toUpperCase() || defaultQuoteSymbol(byId('seCode').value),
-      source_updated_at: byId('seInfoSource').value === 'manual' ? null : new Date().toISOString()
+      source_updated_at: editorInfoSource === 'manual' ? null : new Date().toISOString()
     };
 
     if (!payload.name) return alert('股票名称不能为空');
@@ -668,7 +681,7 @@
             <div><span>持仓 / 成本</span><strong>${position.open}股 / ${formatPrice(position.buy.price, '0.0000')}</strong></div>
             <div><span>今日开盘</span><strong>${stock.open_price == null ? '待更新' : formatPrice(stock.open_price)}</strong></div>
             <div><span>今日收盘</span><strong id="market-close-${position.id}">${last ? formatPrice(last) : '待更新'}</strong></div>
-            <div><span>浮动盈亏</span><strong id="market-profit-${position.id}" class="${floating >= 0 ? 'profit-up' : 'profit-down'}">${money(floating)}</strong></div>
+            <div><span>浮动盈亏</span><strong id="market-profit-${position.id}" class="${floating >= 0 ? 'profit-up' : 'profit-down'}">${formatMoneyByCurrency(floating, stock.currency || 'CNY')}</strong></div>
             <div><span>行情日期</span><strong id="market-date-${position.id}">${stock.price_date || '尚未同步'}</strong></div>
           </div>
 
@@ -699,6 +712,35 @@
     }).join('');
   }
 
+  function renderMultiCurrencySummary() {
+    const positionsData = posData();
+    const open = positionsData.filter(item => item.open > 0);
+    const valueByCurrency = new Map();
+    const profitByCurrency = new Map();
+
+    open.forEach(item => {
+      const currency = String(item.s.currency || 'CNY').toUpperCase();
+      valueByCurrency.set(currency, (valueByCurrency.get(currency) || 0) + Number(item.value || 0));
+    });
+
+    positionsData.forEach(item => {
+      const currency = String(item.s.currency || 'CNY').toUpperCase();
+      profitByCurrency.set(currency, (profitByCurrency.get(currency) || 0) + Number(item.realized || 0));
+    });
+
+    const renderGroups = groups => {
+      if (!groups.size) return formatMoneyByCurrency(0, 'CNY');
+      return [...groups.entries()]
+        .map(([currency, value]) => `<span class="currency-metric-line">${formatMoneyByCurrency(value, currency)}</span>`)
+        .join('');
+    };
+
+    const valueNode = byId('mValue');
+    const profitNode = byId('mProfit');
+    if (valueNode) valueNode.innerHTML = renderGroups(valueByCurrency);
+    if (profitNode) profitNode.innerHTML = renderGroups(profitByCurrency);
+  }
+
   function renderFourDecimalTradeViews() {
     const positionRows = posData();
 
@@ -711,12 +753,12 @@
             <p style="line-height:1.9">
               <span class="badge buy">买入</span>
               ${position.buy.trade_date || ''} ${position.buy.trade_time || ''} ·
-              ${formatPrice(position.buy.price, '')}元 × ${position.buy.quantity || ''}股
+              ${formatPrice(position.buy.price, '')} ${esc(position.s.currency || 'CNY')} × ${position.buy.quantity || ''}股
               <br><span class="muted">原因：${esc(position.buy.reason || '')}</span>
               ${position.sells.map(trade => `
                 <br><span class="badge sell">卖出</span>
                 ${trade.trade_date} ${trade.trade_time} ·
-                ${formatPrice(trade.price, '')}元 × ${trade.quantity}股
+                ${formatPrice(trade.price, '')} ${esc(position.s.currency || 'CNY')} × ${trade.quantity}股
                 <br><span class="muted">原因：${esc(trade.reason)}</span>
               `).join('')}
             </p>
@@ -739,7 +781,7 @@
                 <strong>${esc(stock.name || '')}</strong>
                 <span class="muted">
                   · ${trade.trade_date} ${trade.trade_time} ·
-                  ${formatPrice(trade.price, '')}元 × ${trade.quantity}股
+                  ${formatPrice(trade.price, '')} ${esc(stock.currency || 'CNY')} × ${trade.quantity}股
                 </span>
               </div>
             `;
@@ -904,7 +946,7 @@
       if (closeNode) closeNode.textContent = formatPrice(latest.close, '0.0000');
       if (dateNode) dateNode.textContent = latest.time;
       if (profitNode) {
-        profitNode.textContent = money(floating);
+        profitNode.textContent = formatMoneyByCurrency(floating, stock.currency || 'CNY');
         profitNode.className = floating >= 0 ? 'profit-up' : 'profit-down';
       }
     }
@@ -1050,6 +1092,7 @@
       renderEnhancedStocks();
       renderEnhancedPositions();
       renderFourDecimalTradeViews();
+      renderMultiCurrencySummary();
     };
 
     const baseShowPage = showPage;
