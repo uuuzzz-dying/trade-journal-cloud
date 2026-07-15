@@ -21,7 +21,7 @@
     if (document.querySelector('link[data-market-styles]')) return;
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = '/market.css?v=4';
+    link.href = '/market.css?v=4.1';
     link.dataset.marketStyles = 'true';
     document.head.appendChild(link);
   }
@@ -93,12 +93,14 @@
   }
 
   function installConsolidatedLayout() {
+    const homeNav = document.querySelector('[data-page="home"]');
     const positionNav = document.querySelector('[data-page="positions"]');
     const flowNav = document.querySelector('[data-page="flows"]');
     const stockNav = document.querySelector('[data-page="stocks"]');
     const notesNav = document.querySelector('[data-page="notes"]');
     const learningNav = document.querySelector('[data-page="learning"]');
 
+    if (homeNav) homeNav.textContent = '首页';
     if (positionNav) positionNav.textContent = '持仓';
     flowNav?.remove();
     stockNav?.remove();
@@ -131,6 +133,13 @@
       if (positionCard) mainPanel.appendChild(positionCard);
       positionsSection.appendChild(mainPanel);
 
+      const newsCard = byId('newsStock')?.closest('.card');
+      if (newsCard) {
+        newsCard.id = 'holdingNewsCard';
+        newsCard.classList.add('holding-news-card');
+        positionsSection.insertBefore(newsCard, mainPanel);
+      }
+
       if (flowsSection) {
         flowsSection.classList.remove('page', 'active');
         flowsSection.classList.add('holding-panel');
@@ -147,23 +156,38 @@
     }
 
     const notesSection = byId('notes');
-    const notesHeading = notesSection?.querySelector(':scope > .title h3');
+    const notesTitle = notesSection?.querySelector(':scope > .title');
+    const notesHeading = notesTitle?.querySelector('h3');
     if (notesHeading) notesHeading.textContent = '学习';
     const learningSection = byId('learning');
     const noteWorkspace = notesSection?.querySelector('.note-workspace');
-    const noteSidebar = notesSection?.querySelector('.note-sidebar');
     const noteList = notesSection?.querySelector('.note-list-card');
 
-    if (notesSection && noteWorkspace && noteSidebar && !byId('learningModeSwitch')) {
-      const switcher = document.createElement('div');
-      switcher.id = 'learningModeSwitch';
-      switcher.className = 'learning-mode-switch';
-      switcher.innerHTML = `
-        <button class="active" data-learning-mode="notes" onclick="showLearningPanel('notes')">个人笔记</button>
-        <button data-learning-mode="lesson" onclick="showLearningPanel('lesson')">每日学习</button>
-      `;
-      noteSidebar.insertBefore(switcher, noteSidebar.firstChild);
+    if (notesSection && notesTitle && !byId('learningToggleBtn')) {
+      const writeButton = Array.from(notesTitle.querySelectorAll('button'))
+        .find(button => button.getAttribute('onclick')?.includes('openNote'));
 
+      let actions = notesTitle.querySelector(':scope > .actions');
+      if (!actions) {
+        actions = document.createElement('div');
+        actions.className = 'actions learning-top-actions';
+        notesTitle.appendChild(actions);
+      }
+
+      const lessonButton = document.createElement('button');
+      lessonButton.id = 'learningToggleBtn';
+      lessonButton.className = 'btn soft';
+      lessonButton.textContent = '每日学习';
+      lessonButton.onclick = () => toggleLearningPanel();
+      actions.appendChild(lessonButton);
+
+      if (writeButton) {
+        writeButton.classList.add('primary');
+        actions.appendChild(writeButton);
+      }
+    }
+
+    if (notesSection && noteWorkspace && !byId('learningPanelHost')) {
       if (learningSection) {
         learningSection.classList.remove('page', 'active');
         const host = document.createElement('div');
@@ -235,12 +259,21 @@
     list?.classList.toggle('hidden', isLesson);
     learningHost?.classList.toggle('hidden', !isLesson);
 
-    document.querySelectorAll('[data-learning-mode]').forEach(button => {
-      button.classList.toggle('active', button.dataset.learningMode === mode);
-    });
+    const toggleButton = byId('learningToggleBtn');
+    if (toggleButton) {
+      toggleButton.textContent = isLesson ? '个人笔记' : '每日学习';
+      toggleButton.classList.toggle('primary', isLesson);
+      toggleButton.classList.toggle('soft', !isLesson);
+    }
 
     if (isLesson) renderLesson();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function toggleLearningPanel() {
+    const learningHost = byId('learningPanelHost');
+    const isLessonOpen = learningHost && !learningHost.classList.contains('hidden');
+    showLearningPanel(isLessonOpen ? 'notes' : 'lesson');
   }
 
   function goToStockLibrary() {
@@ -947,6 +980,7 @@
 
     window.showHoldingPanel = showHoldingPanel;
     window.showLearningPanel = showLearningPanel;
+    window.toggleLearningPanel = toggleLearningPanel;
     window.goToStockLibrary = goToStockLibrary;
     window.openStockEditor = openStockEditor;
     window.previewStockSource = previewStockSource;
