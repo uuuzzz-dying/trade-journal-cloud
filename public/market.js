@@ -17,6 +17,12 @@
     manual: '手动维护'
   };
 
+  function formatPrice(value, fallback = '—') {
+    if (value === null || value === undefined || value === '') return fallback;
+    const number = Number(value);
+    return Number.isFinite(number) ? number.toFixed(4) : fallback;
+  }
+
   function ensureMarketStyles() {
     if (document.querySelector('link[data-market-styles]')) return;
     const link = document.createElement('link');
@@ -410,7 +416,7 @@
       byId('sQuoteSymbol').value = result.quote_symbol || defaultQuoteSymbol(code);
       byId('sExchange').value = result.exchange || '';
       byId('sCurrency').value = result.currency || 'CNY';
-      byId('sLatestPrice').value = result.latest_price ?? '';
+      byId('sLatestPrice').value = result.latest_price == null ? '' : formatPrice(result.latest_price, '');
       if (box) box.innerHTML = `已获取：<strong>${esc(result.name || code)}</strong> · ${esc(result.industry || '行业可手动填写')} · ${esc(sourceNames[result.source] || result.source)}`;
     } catch (error) {
       if (box) box.textContent = `自动获取失败：${error.message}。你仍然可以切换来源或手动填写。`;
@@ -510,7 +516,7 @@
         <td>${esc(s.industry || '—')}<div class="muted table-sub">${esc(s.custom_sector || '未设置自定义板块')}</div></td>
         <td>${sourceBadge(s.info_source || 'manual')}</td>
         <td>${esc(s.quote_symbol || defaultQuoteSymbol(s.code))}<div class="muted table-sub">${esc(s.quote_source || 'yahoo')}</div></td>
-        <td>${Number(s.current_price || 0) ? `${esc(s.currency || 'CNY')} ${Number(s.current_price).toFixed(2)}` : '待更新'}<div class="muted table-sub">${esc(s.price_date || '')}</div></td>
+        <td>${Number(s.current_price || 0) ? `${esc(s.currency || 'CNY')} ${formatPrice(s.current_price)}` : '待更新'}<div class="muted table-sub">${esc(s.price_date || '')}</div></td>
         <td><div class="stock-actions">
           <button class="btn soft compact-btn" onclick="refreshStockInfo('${s.id}')">更新资料</button>
           <button class="btn soft compact-btn" onclick="openStockEditor('${s.id}')">修改</button>
@@ -659,9 +665,9 @@
           </div>
 
           <div class="market-subgrid">
-            <div><span>持仓 / 成本</span><strong>${position.open}股 / ${Number(position.buy.price || 0).toFixed(2)}</strong></div>
-            <div><span>今日开盘</span><strong>${stock.open_price == null ? '待更新' : Number(stock.open_price).toFixed(2)}</strong></div>
-            <div><span>今日收盘</span><strong id="market-close-${position.id}">${last ? last.toFixed(2) : '待更新'}</strong></div>
+            <div><span>持仓 / 成本</span><strong>${position.open}股 / ${formatPrice(position.buy.price, '0.0000')}</strong></div>
+            <div><span>今日开盘</span><strong>${stock.open_price == null ? '待更新' : formatPrice(stock.open_price)}</strong></div>
+            <div><span>今日收盘</span><strong id="market-close-${position.id}">${last ? formatPrice(last) : '待更新'}</strong></div>
             <div><span>浮动盈亏</span><strong id="market-profit-${position.id}" class="${floating >= 0 ? 'profit-up' : 'profit-down'}">${money(floating)}</strong></div>
             <div><span>行情日期</span><strong id="market-date-${position.id}">${stock.price_date || '尚未同步'}</strong></div>
           </div>
@@ -691,6 +697,62 @@
         </section>
       `;
     }).join('');
+  }
+
+  function renderFourDecimalTradeViews() {
+    const positionRows = posData();
+
+    const flowsTarget = byId('flowsList');
+    if (flowsTarget) {
+      flowsTarget.innerHTML = positionRows.length
+        ? positionRows.map(position => `
+          <div style="padding:18px 0;border-bottom:1px solid var(--line)">
+            <strong style="font-size:18px">${esc(position.s.name)} ${esc(position.s.code)}</strong>
+            <p style="line-height:1.9">
+              <span class="badge buy">买入</span>
+              ${position.buy.trade_date || ''} ${position.buy.trade_time || ''} ·
+              ${formatPrice(position.buy.price, '')}元 × ${position.buy.quantity || ''}股
+              <br><span class="muted">原因：${esc(position.buy.reason || '')}</span>
+              ${position.sells.map(trade => `
+                <br><span class="badge sell">卖出</span>
+                ${trade.trade_date} ${trade.trade_time} ·
+                ${formatPrice(trade.price, '')}元 × ${trade.quantity}股
+                <br><span class="muted">原因：${esc(trade.reason)}</span>
+              `).join('')}
+            </p>
+          </div>
+        `).join('')
+        : '<div class="empty">暂无交易流程</div>';
+    }
+
+    const recentTarget = byId('recentTrades');
+    if (recentTarget) {
+      const recent = trades.slice(0, 6);
+      recentTarget.innerHTML = recent.length
+        ? recent.map(trade => {
+            const stock = stocks.find(item => item.id === trade.stock_id) || {};
+            return `
+              <div style="padding:12px 0;border-bottom:1px solid var(--line)">
+                <span class="badge ${trade.trade_type === 'buy' ? 'buy' : 'sell'}">
+                  ${trade.trade_type === 'buy' ? '买入' : '卖出'}
+                </span>
+                <strong>${esc(stock.name || '')}</strong>
+                <span class="muted">
+                  · ${trade.trade_date} ${trade.trade_time} ·
+                  ${formatPrice(trade.price, '')}元 × ${trade.quantity}股
+                </span>
+              </div>
+            `;
+          }).join('')
+        : '<div class="empty">暂无交易</div>';
+    }
+  }
+
+  function installFourDecimalPriceInputs() {
+    ['sLatestPrice', 'sBuyPrice', 'bPrice', 'xPrice', 'tePrice'].forEach(id => {
+      const input = byId(id);
+      if (input) input.step = '0.0001';
+    });
   }
 
   function movingAverage(bars, period) {
@@ -748,6 +810,9 @@
         minBarSpacing: 3
       },
       crosshair: { mode: L.CrosshairMode.Normal },
+      localization: {
+        priceFormatter: value => formatPrice(value, '0.0000')
+      },
       handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true },
       handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true }
     });
@@ -759,6 +824,7 @@
       borderDownColor: '#16a34a',
       wickUpColor: '#ef4444',
       wickDownColor: '#16a34a',
+      priceFormat: { type: 'price', precision: 4, minMove: 0.0001 },
       priceLineVisible: false,
       lastValueVisible: true
     });
@@ -781,6 +847,7 @@
       const series = chart.addLineSeries({
         color,
         lineWidth: 2,
+        priceFormat: { type: 'price', precision: 4, minMove: 0.0001 },
         priceLineVisible: false,
         lastValueVisible: false,
         crosshairMarkerVisible: false
@@ -807,7 +874,7 @@
         position: t.trade_type === 'buy' ? 'belowBar' : 'aboveBar',
         color: t.trade_type === 'buy' ? '#ef4444' : '#16a34a',
         shape: t.trade_type === 'buy' ? 'arrowUp' : 'arrowDown',
-        text: `${t.trade_type === 'buy' ? '买' : '卖'} ${Number(t.price).toFixed(2)}`
+        text: `${t.trade_type === 'buy' ? '买' : '卖'} ${formatPrice(t.price, '0.0000')}`
       }))
       .filter(marker => data.bars.some(bar => bar.time === marker.time));
 
@@ -834,7 +901,7 @@
       const dateNode = byId(`market-date-${positionId}`);
       const profitNode = byId(`market-profit-${positionId}`);
 
-      if (closeNode) closeNode.textContent = Number(latest.close).toFixed(2);
+      if (closeNode) closeNode.textContent = formatPrice(latest.close, '0.0000');
       if (dateNode) dateNode.textContent = latest.time;
       if (profitNode) {
         profitNode.textContent = money(floating);
@@ -942,6 +1009,7 @@
     installConsolidatedLayout();
     installStockFields();
     installEditModal();
+    installFourDecimalPriceInputs();
 
     const baseResetStockForm = resetStockForm;
     resetStockForm = function () {
@@ -959,6 +1027,20 @@
       baseOpenBuy();
     };
 
+    const baseOpenSell = openSell;
+    openSell = function (id) {
+      baseOpenSell(id);
+      const priceInput = byId('xPrice');
+      if (priceInput?.value !== '') priceInput.value = formatPrice(priceInput.value, '');
+    };
+
+    const baseOpenTradeEditor = openTradeEditor;
+    openTradeEditor = function (id) {
+      baseOpenTradeEditor(id);
+      const priceInput = byId('tePrice');
+      if (priceInput?.value !== '') priceInput.value = formatPrice(priceInput.value, '');
+    };
+
     lookupStockByCode = lookupStockFromSelectedSource;
     saveManualStock = enhancedSaveManualStock;
 
@@ -967,6 +1049,7 @@
       baseRender();
       renderEnhancedStocks();
       renderEnhancedPositions();
+      renderFourDecimalTradeViews();
     };
 
     const baseShowPage = showPage;
