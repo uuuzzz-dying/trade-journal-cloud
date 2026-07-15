@@ -157,3 +157,118 @@
   .stock-market-picker{gap:6px}
   .stock-market-picker label span{padding:6px 9px}
 }
+
+
+/* v4.4 real A/HK/US selector */
+.stock-market-selector{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  align-items:center;
+  gap:10px 16px;
+  margin:4px 0 18px;
+  padding:14px 16px;
+  border:1px solid rgba(29,29,31,.08);
+  border-radius:18px;
+  background:#f7f7f9;
+}
+.stock-market-selector-title{
+  font-size:13px;
+  font-weight:800;
+  color:#3a3a3c;
+}
+.stock-market-options{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.stock-market-options label{
+  display:inline-flex;
+  margin:0;
+  cursor:pointer;
+}
+.stock-market-options input{
+  position:absolute;
+  opacity:0;
+  pointer-events:none;
+}
+.stock-market-options span{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  min-width:72px;
+  justify-content:center;
+  padding:8px 13px;
+  border:1px solid rgba(29,29,31,.11);
+  border-radius:999px;
+  background:#fff;
+  color:#626267;
+  font-size:13px;
+  font-weight:800;
+  transition:.18s ease;
+}
+.stock-market-options span b{
+  display:grid;
+  place-items:center;
+  width:16px;
+  height:16px;
+  border:1.5px solid #b3b3b8;
+  border-radius:5px;
+  color:transparent;
+  font-size:11px;
+  line-height:1;
+}
+.stock-market-options input:checked + span{
+  border-color:#111113;
+  background:#111113;
+  color:#fff;
+  box-shadow:0 8px 20px rgba(0,0,0,.13);
+}
+.stock-market-options input:checked + span b{
+  border-color:#fff;
+  background:#fff;
+  color:#111113;
+}
+.stock-market-hint{
+  grid-column:1/-1;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.55;
+}
+.market-type-mini{
+  display:inline-flex;
+  align-items:center;
+  padding:2px 7px;
+  margin-right:4px;
+  border-radius:999px;
+  background:#eef3f9;
+  color:#36536f;
+  font-size:11px;
+  font-weight:800;
+}
+
+/* Daily learning uses the full content width */
+.note-workspace.lesson-mode{
+  grid-template-columns:minmax(0,1fr);
+}
+.note-workspace.lesson-mode .learning-panel-host{
+  grid-column:1;
+  width:100%;
+}
+.note-workspace.lesson-mode #learning{
+  width:100%;
+}
+.note-workspace.lesson-mode #learning > .title{
+  margin-top:0;
+}
+
+@media(max-width:650px){
+  .stock-market-selector{
+    grid-template-columns:1fr;
+    gap:9px;
+  }
+  .stock-market-hint{grid-column:1}
+  .stock-market-options{width:100%}
+  .stock-market-options label{flex:1}
+  .stock-market-options span{width:100%;min-width:0}
+}

@@ -36,7 +36,7 @@
     if (document.querySelector('link[data-market-styles]')) return;
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = '/market.css?v=4.1';
+    link.href = '/market.css?v=4.4';
     link.dataset.marketStyles = 'true';
     document.head.appendChild(link);
   }
@@ -46,13 +46,154 @@
     return `<span class="market-source ${esc(value)}">${esc(sourceNames[value] || value)}</span>`;
   }
 
-  function defaultQuoteSymbol(code) {
+  const marketTypeNames = {
+    a: 'A股',
+    hk: '港股',
+    us: '美股'
+  };
+
+  function inferMarketType(code, market = '', currency = '', quoteSymbol = '') {
+    const rawCode = String(code || '').trim().toUpperCase();
+    const marketText = String(market || '').trim();
+    const currencyCode = String(currency || '').trim().toUpperCase();
+    const symbol = String(quoteSymbol || '').trim().toUpperCase();
+
+    if (marketText.includes('港') || currencyCode === 'HKD' || symbol.endsWith('.HK')) return 'hk';
+    if (
+      marketText.includes('美') ||
+      currencyCode === 'USD' ||
+      /^[A-Z]/.test(rawCode) ||
+      (symbol && !/\.(SS|SZ|BJ|HK)$/i.test(symbol))
+    ) return 'us';
+    return 'a';
+  }
+
+  function selectedMarketType() {
+    return document.querySelector('input[name="sMarketType"]:checked')?.value || 'a';
+  }
+
+  function normalizeStockCode(value, marketType = 'a', strict = true) {
+    const raw = String(value || '').trim().toUpperCase();
+
+    const fail = message => {
+      if (strict) throw new Error(message);
+      return '';
+    };
+
+    if (marketType === 'a') {
+      const code = raw.replace(/\.(SH|SZ|SS|BJ)$/i, '');
+      return /^\d{6}$/.test(code) ? code : fail('A股请输入6位数字代码，例如 600422');
+    }
+
+    if (marketType === 'hk') {
+      const code = raw.replace(/\.HK$/i, '');
+      if (!/^\d{1,5}$/.test(code)) return fail('港股请输入1至5位数字代码，例如 700 或 9988');
+      return code.length <= 4 ? code.padStart(4, '0') : code;
+    }
+
+    const code = raw.replace(/\s+/g, '');
+    return /^[A-Z0-9][A-Z0-9.-]{0,14}$/.test(code)
+      ? code
+      : fail('美股请输入代码，例如 AAPL、TSLA 或 BRK-B');
+  }
+
+  function defaultQuoteSymbol(code, marketType = '') {
     const value = String(code || '').trim().toUpperCase();
-    if (value.includes('.')) return value;
-    const c = value.slice(0, 6);
-    if (/^(4|8|92)/.test(c)) return `${c}.BJ`;
-    if (/^(5|6|9)/.test(c)) return `${c}.SS`;
-    return `${c}.SZ`;
+    if (!value) return '';
+    if (/\.(SS|SZ|BJ|HK)$/i.test(value)) return value;
+
+    const type = marketType || inferMarketType(value);
+    const normalized = normalizeStockCode(value, type, false) || value;
+
+    if (type === 'hk') return `${normalized}.HK`;
+    if (type === 'us') return normalized;
+    if (/^(4|8|92)/.test(normalized)) return `${normalized}.BJ`;
+    if (/^(5|6|9)/.test(normalized)) return `${normalized}.SS`;
+    return `${normalized}.SZ`;
+  }
+
+  function marketDefaults(marketType) {
+    if (marketType === 'hk') {
+      return {
+        placeholder: '输入港股代码，例如 700 或 9988',
+        quotePlaceholder: '例如 0700.HK',
+        currency: 'HKD',
+        market: '港股',
+        source: 'yahoo',
+        inputMode: 'numeric',
+        maxLength: 8
+      };
+    }
+
+    if (marketType === 'us') {
+      return {
+        placeholder: '输入美股代码，例如 AAPL 或 BRK-B',
+        quotePlaceholder: '例如 AAPL',
+        currency: 'USD',
+        market: '美股',
+        source: 'yahoo',
+        inputMode: 'text',
+        maxLength: 16
+      };
+    }
+
+    return {
+      placeholder: '输入6位代码，例如 600422',
+      quotePlaceholder: '例如 600422.SS',
+      currency: 'CNY',
+      market: '上海主板',
+      source: 'auto',
+      inputMode: 'numeric',
+      maxLength: 9
+    };
+  }
+
+  function applyStockMarketType(marketType = 'a', clearValues = true) {
+    const type = ['a', 'hk', 'us'].includes(marketType) ? marketType : 'a';
+    const defaults = marketDefaults(type);
+    const radio = document.querySelector(`input[name="sMarketType"][value="${type}"]`);
+    if (radio) radio.checked = true;
+
+    const codeInput = byId('sCode');
+    if (codeInput) {
+      codeInput.placeholder = defaults.placeholder;
+      codeInput.inputMode = defaults.inputMode;
+      codeInput.maxLength = defaults.maxLength;
+      codeInput.autocapitalize = type === 'us' ? 'characters' : 'off';
+    }
+
+    const sourceSelect = byId('sInfoSource');
+    if (sourceSelect) {
+      const autoOption = sourceSelect.querySelector('option[value="auto"]');
+      const eastmoneyOption = sourceSelect.querySelector('option[value="eastmoney"]');
+      if (autoOption) autoOption.disabled = type !== 'a';
+      if (eastmoneyOption) eastmoneyOption.disabled = type !== 'a';
+
+      if (type !== 'a' && sourceSelect.value !== 'manual') sourceSelect.value = 'yahoo';
+      if (type === 'a' && ['auto', 'eastmoney'].every(value => sourceSelect.value !== value)) {
+        sourceSelect.value = 'auto';
+      }
+    }
+
+    if (byId('sCurrency')) byId('sCurrency').value = defaults.currency;
+    if (byId('sMarket')) byId('sMarket').value = defaults.market;
+    if (byId('sQuoteSymbol')) byId('sQuoteSymbol').placeholder = defaults.quotePlaceholder;
+
+    if (clearValues) {
+      ['sCode', 'sName', 'sIndustry', 'sExchange', 'sLatestPrice', 'sQuoteSymbol'].forEach(id => {
+        if (byId(id)) byId(id).value = '';
+      });
+      byId('stockLookupStatus')?.classList.add('hidden');
+    }
+
+    const hint = byId('stockMarketHint');
+    if (hint) {
+      hint.textContent = type === 'a'
+        ? 'A股使用6位数字代码，可选择东方财富或 Yahoo Finance。'
+        : type === 'hk'
+          ? '港股可输入700、0700或9988，系统会自动转换为 Yahoo 的 .HK 行情代码。'
+          : '美股可输入 AAPL、TSLA、BRK-B 等代码，资料和K线来自 Yahoo Finance。';
+    }
   }
 
   async function getCloudConfig() {
@@ -268,9 +409,9 @@
     const learningHost = byId('learningPanelHost');
     const isLesson = mode === 'lesson';
 
-    sidebar?.querySelector('.filter-stack')?.classList.toggle('hidden', isLesson);
-    sidebar?.querySelector('.calendar')?.classList.toggle('hidden', isLesson);
-    sidebar?.querySelector('.filter-summary')?.classList.toggle('hidden', isLesson);
+    const workspace = notesSection.querySelector('.note-workspace');
+    sidebar?.classList.toggle('hidden', isLesson);
+    workspace?.classList.toggle('lesson-mode', isLesson);
     list?.classList.toggle('hidden', isLesson);
     learningHost?.classList.toggle('hidden', !isLesson);
 
@@ -302,6 +443,25 @@
     if (!status || byId('sInfoSource')) return;
 
     status.insertAdjacentHTML('beforebegin', `
+      <div id="sMarketTypePicker" class="stock-market-selector">
+        <div class="stock-market-selector-title">所属股市</div>
+        <div class="stock-market-options" role="radiogroup" aria-label="所属股市">
+          <label>
+            <input type="radio" name="sMarketType" value="a" checked>
+            <span><b>✓</b>A股</span>
+          </label>
+          <label>
+            <input type="radio" name="sMarketType" value="hk">
+            <span><b>✓</b>港股</span>
+          </label>
+          <label>
+            <input type="radio" name="sMarketType" value="us">
+            <span><b>✓</b>美股</span>
+          </label>
+        </div>
+        <div id="stockMarketHint" class="stock-market-hint">A股使用6位数字代码，可选择东方财富或 Yahoo Finance。</div>
+      </div>
+
       <div class="stock-source-grid">
         <div>
           <label>公司资料来源</label>
@@ -327,7 +487,7 @@
       <div class="stock-source-grid">
         <div><label>交易所</label><input id="sExchange" placeholder="自动获取或手动填写"></div>
         <div><label>币种</label><input id="sCurrency" value="CNY" maxlength="8"></div>
-        <div><label>最新价格</label><input id="sLatestPrice" type="number" step="0.001" placeholder="可留空"></div>
+        <div><label>最新价格</label><input id="sLatestPrice" type="number" step="0.0001" placeholder="可留空"></div>
       </div>
     `);
 
@@ -339,6 +499,12 @@
       newCode.addEventListener('blur', lookupStockFromSelectedSource);
     }
 
+    document.querySelectorAll('input[name="sMarketType"]').forEach(input => {
+      input.addEventListener('change', () => {
+        applyStockMarketType(input.value, true);
+      });
+    });
+
     byId('sInfoSource')?.addEventListener('change', () => {
       const manual = byId('sInfoSource').value === 'manual';
       if (manual) {
@@ -348,6 +514,8 @@
         scheduleMarketLookup();
       }
     });
+
+    applyStockMarketType('a', false);
   }
 
   function installEditModal() {
@@ -382,10 +550,7 @@
     if (!byId('sInfoSource')) return;
     byId('sInfoSource').value = 'auto';
     byId('sQuoteSource').value = 'yahoo';
-    byId('sQuoteSymbol').value = '';
-    byId('sExchange').value = '';
-    byId('sCurrency').value = 'CNY';
-    byId('sLatestPrice').value = '';
+    applyStockMarketType('a', true);
   }
 
   function scheduleMarketLookup() {
@@ -394,53 +559,101 @@
   }
 
   async function lookupStockFromSelectedSource() {
+    const marketType = selectedMarketType();
     const raw = byId('sCode')?.value.trim().toUpperCase() || '';
-    const code = raw.replace(/\.(SH|SZ|BJ|SS)$/i, '');
+    const code = normalizeStockCode(raw, marketType, false);
     const box = byId('stockLookupStatus');
-    if (!/^\d{6}$/.test(code)) {
+
+    if (!code) {
       box?.classList.add('hidden');
       return;
     }
 
-    const source = byId('sInfoSource')?.value || 'auto';
-    if (byId('sQuoteSymbol')) byId('sQuoteSymbol').value ||= defaultQuoteSymbol(code);
+    let source = byId('sInfoSource')?.value || 'auto';
+    if (marketType !== 'a' && source !== 'manual') {
+      source = 'yahoo';
+      if (byId('sInfoSource')) byId('sInfoSource').value = 'yahoo';
+    }
+
+    if (byId('sQuoteSymbol')) {
+      byId('sQuoteSymbol').value ||= defaultQuoteSymbol(code, marketType);
+    }
 
     if (source === 'manual') {
       box?.classList.remove('hidden');
-      if (box) box.textContent = '手动模式：请自己填写名称、行业、市场和行情代码。';
+      if (box) box.textContent = `手动模式：请自己填写${marketTypeNames[marketType]}名称、行业、市场和行情代码。`;
       return;
     }
 
     box?.classList.remove('hidden');
-    if (box) box.textContent = `正在从${sourceNames[source]}获取资料…`;
+    if (box) box.textContent = `正在从${sourceNames[source]}获取${marketTypeNames[marketType]}资料…`;
 
     try {
-      const result = await marketRequest({ action: 'lookup', code, source });
-      byId('sCode').value = code;
+      const result = await marketRequest({
+        action: 'lookup',
+        code,
+        source,
+        market: marketType
+      });
+
+      const canonicalCode = result.code || code;
+      byId('sCode').value = canonicalCode;
       byId('sName').value = result.name || byId('sName').value;
       byId('sIndustry').value = result.industry || byId('sIndustry').value;
-      if (result.market && [...byId('sMarket').options].some(o => o.value === result.market)) {
+
+      if (result.market && [...byId('sMarket').options].some(option => option.value === result.market)) {
         byId('sMarket').value = result.market;
+      } else if (marketType === 'hk') {
+        byId('sMarket').value = '港股';
+      } else if (marketType === 'us') {
+        byId('sMarket').value = '美股';
       }
-      byId('sQuoteSymbol').value = result.quote_symbol || defaultQuoteSymbol(code);
+
+      byId('sQuoteSymbol').value = result.quote_symbol || defaultQuoteSymbol(canonicalCode, marketType);
       byId('sExchange').value = result.exchange || '';
-      byId('sCurrency').value = result.currency || 'CNY';
+      byId('sCurrency').value = result.currency || marketDefaults(marketType).currency;
       byId('sLatestPrice').value = result.latest_price == null ? '' : formatPrice(result.latest_price, '');
-      if (box) box.innerHTML = `已获取：<strong>${esc(result.name || code)}</strong> · ${esc(result.industry || '行业可手动填写')} · ${esc(sourceNames[result.source] || result.source)}`;
+
+      if (box) {
+        box.innerHTML = `已获取：<strong>${esc(result.name || canonicalCode)}</strong> · ` +
+          `${esc(result.industry || '行业可手动填写')} · ` +
+          `${esc(result.exchange || marketTypeNames[marketType])} · ` +
+          `${esc(sourceNames[result.source] || result.source)}`;
+      }
     } catch (error) {
-      if (box) box.textContent = `自动获取失败：${error.message}。你仍然可以切换来源或手动填写。`;
+      if (box) box.textContent = `自动获取失败：${error.message}。你仍然可以切换为手动填写。`;
     }
   }
 
   async function enhancedSaveManualStock() {
-    const code = String(byId('sCode')?.value || '').trim().toUpperCase().replace(/\.(SH|SZ|BJ|SS)$/i, '');
+    const marketType = selectedMarketType();
+    let code;
+
+    try {
+      code = normalizeStockCode(byId('sCode')?.value, marketType, true);
+    } catch (error) {
+      return alert(error.message);
+    }
+
     const name = byId('sName')?.value.trim() || '';
-    const infoSource = byId('sInfoSource')?.value || 'manual';
+    let infoSource = byId('sInfoSource')?.value || 'manual';
     const quoteSource = byId('sQuoteSource')?.value || 'yahoo';
 
-    if (!/^\d{6}$/.test(code)) return alert('请输入6位股票代码');
+    if (marketType !== 'a' && infoSource !== 'manual') infoSource = 'yahoo';
     if (!name) return alert('请填写股票名称');
-    if (stocks.some(s => String(s.code) === code)) return alert('股票库中已经有这只股票');
+
+    const quoteSymbol = (
+      byId('sQuoteSymbol')?.value.trim().toUpperCase() ||
+      defaultQuoteSymbol(code, marketType)
+    );
+
+    if (stocks.some(stock => {
+      const existingType = inferMarketType(stock.code, stock.market, stock.currency, stock.quote_symbol);
+      const existingSymbol = stock.quote_symbol || defaultQuoteSymbol(stock.code, existingType);
+      return String(existingSymbol).toUpperCase() === quoteSymbol.toUpperCase();
+    })) {
+      return alert('股票库中已经有这只股票');
+    }
 
     let firstBuy = null;
     if (byId('firstBuyToggle')?.checked) {
@@ -463,12 +676,12 @@
       name,
       custom_sector: byId('sSector').value.trim(),
       industry: byId('sIndustry').value.trim(),
-      market: byId('sMarket').value,
+      market: marketType === 'hk' ? '港股' : marketType === 'us' ? '美股' : byId('sMarket').value,
       info_source: infoSource,
       quote_source: quoteSource,
-      quote_symbol: byId('sQuoteSymbol').value.trim().toUpperCase() || defaultQuoteSymbol(code),
+      quote_symbol: quoteSymbol,
       exchange: byId('sExchange').value.trim(),
-      currency: byId('sCurrency').value.trim().toUpperCase() || 'CNY',
+      currency: byId('sCurrency').value.trim().toUpperCase() || marketDefaults(marketType).currency,
       current_price: Number(byId('sLatestPrice').value || 0),
       source_updated_at: infoSource === 'manual' ? null : new Date().toISOString()
     };
@@ -521,7 +734,7 @@
     target.innerHTML = `<div class="scroll"><table><thead><tr><th>代码</th><th>名称</th><th>行业 / 自定义板块</th><th>资料来源</th><th>K线代码</th><th>最新价</th><th>操作</th></tr></thead><tbody>${stocks.map(s => `
       <tr>
         <td><strong>${esc(s.code)}</strong></td>
-        <td>${esc(s.name)}<div class="muted table-sub">${esc(s.market || '')} ${esc(s.exchange || '')}</div></td>
+        <td>${esc(s.name)}<div class="muted table-sub"><span class="market-type-mini">${esc(marketTypeNames[inferMarketType(s.code, s.market, s.currency, s.quote_symbol)])}</span> ${esc(s.market || '')} ${esc(s.exchange || '')}</div></td>
         <td>${esc(s.industry || '—')}<div class="muted table-sub">${esc(s.custom_sector || '未设置自定义板块')}</div></td>
         <td>${sourceBadge(s.info_source || 'manual')}</td>
         <td>${esc(s.quote_symbol || defaultQuoteSymbol(s.code))}<div class="muted table-sub">${esc(s.quote_source || 'yahoo')}</div></td>
@@ -547,7 +760,7 @@
     byId('seMarket').value = stock.market || (/^6/.test(stock.code) ? '上海主板' : '深圳主板');
     byId('seExchange').value = stock.exchange || '';
     byId('seCurrency').value = stock.currency || 'CNY';
-    byId('seQuoteSymbol').value = stock.quote_symbol || defaultQuoteSymbol(stock.code);
+    byId('seQuoteSymbol').value = stock.quote_symbol || defaultQuoteSymbol(stock.code, inferMarketType(stock.code, stock.market, stock.currency, stock.quote_symbol));
     byId('sePreview').classList.add('hidden');
     openM('stockEditModal');
   }
@@ -564,7 +777,19 @@
 
     preview.textContent = `正在从${sourceNames[source]}获取…`;
     try {
-      const result = await marketRequest({ action: 'lookup', code: byId('seCode').value, source });
+      const editorMarketType = inferMarketType(
+        byId('seCode').value,
+        byId('seMarket').value,
+        byId('seCurrency').value,
+        byId('seQuoteSymbol').value
+      );
+      const requestSource = editorMarketType === 'a' ? source : 'yahoo';
+      const result = await marketRequest({
+        action: 'lookup',
+        code: byId('seCode').value,
+        source: requestSource,
+        market: editorMarketType
+      });
       byId('seName').value = result.name || byId('seName').value;
       byId('seIndustry').value = result.industry || byId('seIndustry').value;
       if (result.market && [...byId('seMarket').options].some(o => o.value === result.market)) {
@@ -572,7 +797,7 @@
       }
       byId('seExchange').value = result.exchange || '';
       byId('seCurrency').value = result.currency || 'CNY';
-      byId('seQuoteSymbol').value = result.quote_symbol || defaultQuoteSymbol(byId('seCode').value);
+      byId('seQuoteSymbol').value = result.quote_symbol || defaultQuoteSymbol(byId('seCode').value, editorMarketType);
       preview.innerHTML = `已获取 <strong>${esc(result.name || '')}</strong>；你可以继续手动修改再保存。`;
     } catch (error) {
       preview.classList.add('error');
@@ -582,7 +807,12 @@
 
   async function saveStockEditor() {
     const id = byId('seId').value;
-    const editorMarketType = inferMarketType(byId('seCode').value, byId('seMarket').value);
+    const editorMarketType = inferMarketType(
+      byId('seCode').value,
+      byId('seMarket').value,
+      byId('seCurrency').value,
+      byId('seQuoteSymbol').value
+    );
     let editorInfoSource = byId('seInfoSource').value;
     if (editorMarketType !== 'a' && editorInfoSource !== 'manual') editorInfoSource = 'yahoo';
 
@@ -626,7 +856,16 @@
 
     toast(`正在更新 ${stock.name}…`);
     try {
-      const result = await marketRequest({ action: 'lookup', code: stock.code, source: stock.info_source || 'auto' });
+      const stockMarketType = inferMarketType(stock.code, stock.market, stock.currency, stock.quote_symbol);
+      const refreshSource = stockMarketType === 'a'
+        ? (stock.info_source || 'auto')
+        : ((stock.info_source || 'yahoo') === 'manual' ? 'manual' : 'yahoo');
+      const result = await marketRequest({
+        action: 'lookup',
+        code: stock.code,
+        source: refreshSource,
+        market: stockMarketType
+      });
       const payload = {
         name: result.name || stock.name,
         industry: result.industry || stock.industry,
