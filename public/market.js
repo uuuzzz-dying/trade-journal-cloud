@@ -366,7 +366,7 @@
     const notice = document.createElement('div');
     notice.id = 'buyStockLibraryNotice';
     notice.className = 'buy-stock-notice';
-    notice.innerHTML = `需先将新股票加入 <button type="button" onclick="goToStockLibrary()">股票库</button>，再回来记录买入。`;
+    notice.innerHTML = `需先将新股票 <button type="button" onclick="goToStockLibrary()">加入股票库</button>，再回来记录买入。`;
     head?.insertAdjacentElement('afterend', notice);
   }
 
@@ -434,8 +434,7 @@
 
   function goToStockLibrary() {
     closeM('buyModal');
-    showHoldingPanel('stocks');
-    setTimeout(() => byId('stocks')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    setTimeout(() => openStock(), 80);
   }
 
   function installStockFields() {
