@@ -3,17 +3,8 @@
   "version": 2,
   "rewrites": [
     {
-      "source": "/",
-      "destination": "/api/app"
-    },
-    {
       "source": "/((?!api/|market.css$|market.js$).*)",
-      "destination": "/api/app"
+      "destination": "/index.html"
     }
-  ],
-  "functions": {
-    "api/app.js": {
-      "maxDuration": 10
-    }
-  }
+  ]
 }
