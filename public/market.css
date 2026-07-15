@@ -1,28 +1,85 @@
 .market-position{padding:22px 0;border-bottom:1px solid var(--line)}
 .market-position:last-child{border-bottom:0}
-.market-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:14px 0 8px}
-.market-toolbar .market-range{display:flex;gap:7px;flex-wrap:wrap}
-.market-range button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 12px;font-size:12px;font-weight:750;color:var(--muted)}
-.market-range button.active{background:var(--black);border-color:var(--black);color:#fff}
-.market-chart{height:340px;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:#fff;margin-top:12px}
-.market-chart-state{min-height:24px;color:var(--muted);font-size:13px;margin-top:9px}
+.market-position-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+.market-position-actions{justify-content:flex-end}
+.market-price-line{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.market-price-line>strong{font-size:20px;letter-spacing:-.35px}
+.market-position-meta{margin-top:6px;font-size:13px}
+.market-subgrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:18px}
+.market-subgrid>div{padding:13px 14px;border-radius:15px;background:#f7f7f9}
+.market-subgrid span{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}
+.market-subgrid strong{font-size:15px}
+.profit-up{color:var(--red)}
+.profit-down{color:var(--green)}
+
 .market-source{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 9px;background:#f2f4f7;font-size:12px;font-weight:750;color:#53535a}
 .market-source:before{content:"";width:7px;height:7px;border-radius:50%;background:#0071e3}
 .market-source.manual:before{background:#8e8e93}
 .market-source.eastmoney:before{background:#d70015}
 .market-source.yahoo:before{background:#7b3ff2}
 .market-source.auto:before{background:#168443}
-.market-price-line{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
-.market-price{font-size:28px;font-weight:800;letter-spacing:-.7px}
-.market-subgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:16px}
-.market-subgrid>div{padding:12px;border-radius:14px;background:#f7f7f9}
-.market-subgrid span{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}
-.market-subgrid strong{font-size:15px}
+
+.kline-entry{display:flex;justify-content:flex-start;margin-top:14px}
+.kline-toggle{display:inline-flex;align-items:center;gap:9px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:9px 14px;color:#424247;font-size:13px;font-weight:780;cursor:pointer;transition:.18s ease}
+.kline-toggle:hover{background:#f7f7f9;transform:translateY(-1px)}
+.kline-toggle.active{background:#111113;color:#fff;border-color:#111113}
+.kline-chevron{font-size:16px;line-height:1}
+.kline-panel{margin-top:14px;padding:16px;border:1px solid var(--line);border-radius:20px;background:#fff}
+.kline-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.market-range{display:flex;gap:6px;flex-wrap:wrap}
+.market-range button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 11px;font-size:12px;font-weight:760;color:var(--muted);cursor:pointer}
+.market-range button.active{background:#111113;border-color:#111113;color:#fff}
+.ma-legend{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:12px;font-weight:760}
+.ma-legend span:before{content:"";display:inline-block;width:15px;height:2px;margin-right:5px;vertical-align:middle;border-radius:3px;background:currentColor}
+.ma-legend .muted:before{background:#0071e3}
+.ma5{color:#1473e6}.ma10{color:#ff7a1a}.ma20{color:#e244c4}.ma30{color:#66686d}
+.market-chart-state{min-height:20px;color:var(--muted);font-size:12px;margin:10px 0 6px}
+.market-chart{height:390px;overflow:hidden;background:#fff}
+.market-chart .empty{display:grid;place-items:center;height:100%}
+
+.holding-panel{display:none}
+.holding-panel.active{display:block}
+.holding-top-actions{justify-content:flex-end}
+.holding-tab.active{background:#111113;color:#fff;border-color:#111113}
+#flows.holding-panel,#stocks.holding-panel{margin-top:18px}
+#flows.holding-panel>.title,#stocks.holding-panel>.title{margin-top:8px}
+
+.learning-mode-switch{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:6px;margin-bottom:16px;border-radius:16px;background:#f1f1f3}
+.learning-mode-switch button{border:0;border-radius:12px;padding:10px 8px;background:transparent;color:var(--muted);font-size:13px;font-weight:800;cursor:pointer}
+.learning-mode-switch button.active{background:#fff;color:#111113;box-shadow:0 5px 15px rgba(0,0,0,.07)}
+.learning-panel-host{grid-column:2;min-width:0}
+.learning-panel-host #learning{display:block}
+.learning-panel-host #learning>.title{margin-top:0}
+
+.buy-stock-notice{margin:0 0 16px;padding:12px 14px;border-radius:15px;background:#f0f7ff;color:#245a96;font-size:13px;line-height:1.6}
+.buy-stock-notice button{border:0;padding:0;background:transparent;color:#0071e3;font-weight:800;text-decoration:underline;cursor:pointer}
+
 .stock-source-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:14px 0}
 .stock-source-grid .wide{grid-column:span 2}
 .stock-actions{display:flex;gap:7px;flex-wrap:wrap}
+.compact-btn{padding:8px 12px!important;font-size:13px!important;width:auto!important}
+.table-sub{margin-top:4px;font-size:12px}
 .source-preview{padding:14px;border-radius:16px;background:#f0f7ff;color:#245a96;margin:12px 0;line-height:1.6}
 .source-preview.error{background:#fff1f2;color:#a80e1d}
 .market-warning{padding:12px 14px;border-radius:14px;background:#fff8e7;color:#8a5a00;font-size:13px;line-height:1.55;margin-top:10px}
-@media(max-width:900px){.market-subgrid{grid-template-columns:repeat(2,1fr)}.stock-source-grid{grid-template-columns:1fr}.stock-source-grid .wide{grid-column:auto}}
-@media(max-width:650px){.market-chart{height:290px}.market-price{font-size:24px}.market-toolbar>.btn{width:auto}.stock-actions .btn{width:auto}}
+
+@media(max-width:1050px){
+  .market-position-head{flex-direction:column}
+  .market-position-actions{justify-content:flex-start}
+  .holding-top-actions{justify-content:flex-start}
+  .learning-panel-host{grid-column:1}
+}
+@media(max-width:900px){
+  .market-subgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .stock-source-grid{grid-template-columns:1fr}
+  .stock-source-grid .wide{grid-column:auto}
+}
+@media(max-width:650px){
+  .market-chart{height:310px}
+  .market-position-actions .btn{width:auto}
+  .holding-top-actions .btn{width:auto}
+  .kline-panel{padding:12px}
+  .market-subgrid{grid-template-columns:1fr 1fr}
+  .market-subgrid>div:last-child{grid-column:1/-1}
+  .stock-actions .btn{width:auto}
+}

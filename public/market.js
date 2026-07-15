@@ -1,10 +1,14 @@
 (() => {
+  if (window.__tradeJournalMarketV4) return;
+  window.__tradeJournalMarketV4 = true;
+
   const byId = id => document.getElementById(id);
   const chartHandles = new Map();
   const chartRanges = new Map();
+  const chartCache = new Map();
+  let chartLibraryPromise = null;
   let cloudConfig = null;
   let marketLookupTimer = null;
-  let lastLookup = null;
 
   const sourceNames = {
     auto: '自动组合',
@@ -13,13 +17,24 @@
     manual: '手动维护'
   };
 
+  function ensureMarketStyles() {
+    if (document.querySelector('link[data-market-styles]')) return;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '/market.css?v=4';
+    link.dataset.marketStyles = 'true';
+    document.head.appendChild(link);
+  }
+
   function sourceBadge(source) {
     const value = source || 'manual';
     return `<span class="market-source ${esc(value)}">${esc(sourceNames[value] || value)}</span>`;
   }
 
   function defaultQuoteSymbol(code) {
-    const c = String(code || '').slice(0, 6);
+    const value = String(code || '').trim().toUpperCase();
+    if (value.includes('.')) return value;
+    const c = value.slice(0, 6);
     if (/^(4|8|92)/.test(c)) return `${c}.BJ`;
     if (/^(5|6|9)/.test(c)) return `${c}.SS`;
     return `${c}.SZ`;
@@ -28,7 +43,7 @@
   async function getCloudConfig() {
     if (cloudConfig) return cloudConfig;
     const response = await fetch('/api/config', { cache: 'no-store' });
-    const body = await response.json();
+    const body = await response.json().catch(() => ({}));
     if (!response.ok || !body.supabaseUrl || !body.supabaseAnonKey) {
       throw new Error(body.error || '无法读取云端配置');
     }
@@ -53,9 +68,191 @@
     return body;
   }
 
+  function ensureChartLibrary() {
+    if (window.LightweightCharts) return Promise.resolve(window.LightweightCharts);
+    if (chartLibraryPromise) return chartLibraryPromise;
+
+    chartLibraryPromise = new Promise((resolve, reject) => {
+      const existing = document.querySelector('script[data-lightweight-charts]');
+      if (existing) {
+        existing.addEventListener('load', () => resolve(window.LightweightCharts), { once: true });
+        existing.addEventListener('error', () => reject(new Error('K线组件加载失败')), { once: true });
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js';
+      script.async = true;
+      script.dataset.lightweightCharts = 'true';
+      script.onload = () => resolve(window.LightweightCharts);
+      script.onerror = () => reject(new Error('K线组件加载失败，请检查网络后重试'));
+      document.head.appendChild(script);
+    });
+
+    return chartLibraryPromise;
+  }
+
+  function installConsolidatedLayout() {
+    const positionNav = document.querySelector('[data-page="positions"]');
+    const flowNav = document.querySelector('[data-page="flows"]');
+    const stockNav = document.querySelector('[data-page="stocks"]');
+    const notesNav = document.querySelector('[data-page="notes"]');
+    const learningNav = document.querySelector('[data-page="learning"]');
+
+    if (positionNav) positionNav.textContent = '持仓';
+    flowNav?.remove();
+    stockNav?.remove();
+    if (notesNav) notesNav.textContent = '学习';
+    learningNav?.remove();
+
+    const positionsSection = byId('positions');
+    const flowsSection = byId('flows');
+    const stocksSection = byId('stocks');
+
+    if (positionsSection && !byId('holdingPanelPositions')) {
+      const title = positionsSection.querySelector(':scope > .title');
+      const positionCard = positionsSection.querySelector(':scope > .card');
+
+      if (title) {
+        title.innerHTML = `
+          <h3>持仓</h3>
+          <div class="actions holding-top-actions">
+            <button class="btn soft holding-tab active" data-holding-panel="positions" onclick="showHoldingPanel('positions')">持仓明细</button>
+            <button class="btn soft holding-tab" data-holding-panel="flows" onclick="showHoldingPanel('flows')">交易流程</button>
+            <button class="btn soft holding-tab" data-holding-panel="stocks" onclick="showHoldingPanel('stocks')">股票库</button>
+            <button class="btn primary" onclick="openBuy()">记录买入</button>
+          </div>
+        `;
+      }
+
+      const mainPanel = document.createElement('div');
+      mainPanel.id = 'holdingPanelPositions';
+      mainPanel.className = 'holding-panel active';
+      if (positionCard) mainPanel.appendChild(positionCard);
+      positionsSection.appendChild(mainPanel);
+
+      if (flowsSection) {
+        flowsSection.classList.remove('page', 'active');
+        flowsSection.classList.add('holding-panel');
+        flowsSection.dataset.holdingPanel = 'flows';
+        positionsSection.appendChild(flowsSection);
+      }
+
+      if (stocksSection) {
+        stocksSection.classList.remove('page', 'active');
+        stocksSection.classList.add('holding-panel');
+        stocksSection.dataset.holdingPanel = 'stocks';
+        positionsSection.appendChild(stocksSection);
+      }
+    }
+
+    const notesSection = byId('notes');
+    const notesHeading = notesSection?.querySelector(':scope > .title h3');
+    if (notesHeading) notesHeading.textContent = '学习';
+    const learningSection = byId('learning');
+    const noteWorkspace = notesSection?.querySelector('.note-workspace');
+    const noteSidebar = notesSection?.querySelector('.note-sidebar');
+    const noteList = notesSection?.querySelector('.note-list-card');
+
+    if (notesSection && noteWorkspace && noteSidebar && !byId('learningModeSwitch')) {
+      const switcher = document.createElement('div');
+      switcher.id = 'learningModeSwitch';
+      switcher.className = 'learning-mode-switch';
+      switcher.innerHTML = `
+        <button class="active" data-learning-mode="notes" onclick="showLearningPanel('notes')">个人笔记</button>
+        <button data-learning-mode="lesson" onclick="showLearningPanel('lesson')">每日学习</button>
+      `;
+      noteSidebar.insertBefore(switcher, noteSidebar.firstChild);
+
+      if (learningSection) {
+        learningSection.classList.remove('page', 'active');
+        const host = document.createElement('div');
+        host.id = 'learningPanelHost';
+        host.className = 'learning-panel-host hidden';
+        host.appendChild(learningSection);
+        noteWorkspace.appendChild(host);
+      }
+
+      if (noteList) noteList.dataset.notesPanel = 'true';
+    }
+
+    installBuyStockNotice();
+  }
+
+  function installBuyStockNotice() {
+    const box = byId('buyModal')?.querySelector('.modal-box');
+    if (!box || byId('buyStockLibraryNotice')) return;
+    const head = box.querySelector('.modal-head');
+    const notice = document.createElement('div');
+    notice.id = 'buyStockLibraryNotice';
+    notice.className = 'buy-stock-notice';
+    notice.innerHTML = `需先将新股票加入 <button type="button" onclick="goToStockLibrary()">股票库</button>，再回来记录买入。`;
+    head?.insertAdjacentElement('afterend', notice);
+  }
+
+  function showHoldingPanel(name = 'positions') {
+    if (!['positions', 'flows', 'stocks'].includes(name)) name = 'positions';
+    const positionsSection = byId('positions');
+    if (!positionsSection) return;
+
+    document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.nav').forEach(x => x.classList.remove('active'));
+    positionsSection.classList.add('active');
+    document.querySelector('[data-page="positions"]')?.classList.add('active');
+
+    byId('holdingPanelPositions')?.classList.toggle('active', name === 'positions');
+    const flows = byId('flows');
+    const stocksPage = byId('stocks');
+    flows?.classList.toggle('active', name === 'flows');
+    stocksPage?.classList.toggle('active', name === 'stocks');
+
+    document.querySelectorAll('.holding-tab').forEach(button => {
+      button.classList.toggle('active', button.dataset.holdingPanel === name);
+    });
+
+    if (name === 'positions') renderEnhancedPositions();
+    if (name === 'stocks') renderEnhancedStocks();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function showLearningPanel(mode = 'notes') {
+    const notesSection = byId('notes');
+    if (!notesSection) return;
+
+    document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.nav').forEach(x => x.classList.remove('active'));
+    notesSection.classList.add('active');
+    document.querySelector('[data-page="notes"]')?.classList.add('active');
+
+    const sidebar = notesSection.querySelector('.note-sidebar');
+    const list = notesSection.querySelector('[data-notes-panel]');
+    const learningHost = byId('learningPanelHost');
+    const isLesson = mode === 'lesson';
+
+    sidebar?.querySelector('.filter-stack')?.classList.toggle('hidden', isLesson);
+    sidebar?.querySelector('.calendar')?.classList.toggle('hidden', isLesson);
+    sidebar?.querySelector('.filter-summary')?.classList.toggle('hidden', isLesson);
+    list?.classList.toggle('hidden', isLesson);
+    learningHost?.classList.toggle('hidden', !isLesson);
+
+    document.querySelectorAll('[data-learning-mode]').forEach(button => {
+      button.classList.toggle('active', button.dataset.learningMode === mode);
+    });
+
+    if (isLesson) renderLesson();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function goToStockLibrary() {
+    closeM('buyModal');
+    showHoldingPanel('stocks');
+    setTimeout(() => byId('stocks')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }
+
   function installStockFields() {
     const status = byId('stockLookupStatus');
     if (!status || byId('sInfoSource')) return;
+
     status.insertAdjacentHTML('beforebegin', `
       <div class="stock-source-grid">
         <div>
@@ -87,15 +284,18 @@
     `);
 
     const oldCode = byId('sCode');
-    const newCode = oldCode.cloneNode(true);
-    oldCode.replaceWith(newCode);
-    newCode.addEventListener('input', scheduleMarketLookup);
-    newCode.addEventListener('blur', lookupStockFromSelectedSource);
-    byId('sInfoSource').addEventListener('change', () => {
+    if (oldCode) {
+      const newCode = oldCode.cloneNode(true);
+      oldCode.replaceWith(newCode);
+      newCode.addEventListener('input', scheduleMarketLookup);
+      newCode.addEventListener('blur', lookupStockFromSelectedSource);
+    }
+
+    byId('sInfoSource')?.addEventListener('change', () => {
       const manual = byId('sInfoSource').value === 'manual';
       if (manual) {
-        byId('stockLookupStatus').classList.remove('hidden');
-        byId('stockLookupStatus').textContent = '已选择手动维护：名称、行业、市场和行情代码都可以自己修改。';
+        status.classList.remove('hidden');
+        status.textContent = '已选择手动维护：名称、行业、市场和行情代码都可以自己修改。';
       } else {
         scheduleMarketLookup();
       }
@@ -124,7 +324,7 @@
           <div><label>币种</label><input id="seCurrency" maxlength="8"></div>
           <div class="wide"><label>行情代码</label><input id="seQuoteSymbol" placeholder="例如 600422.SS"></div>
         </div>
-        <div class="market-warning">资料来源只决定“自动填写时从哪里取数”。保存前你仍然可以修改任何字段；手动修改不会被自动覆盖，除非再次点击“重新获取”。</div>
+        <div class="market-warning">资料来源只决定自动填写时从哪里取数。保存前仍可修改任何字段；除非再次点击重新获取，否则手动内容不会被覆盖。</div>
         <div class="actions" style="margin-top:18px"><button id="saveStockEditBtn" class="btn primary" onclick="saveStockEditor()">保存修改</button><button class="btn soft" onclick="closeM('stockEditModal')">取消</button></div>
       </div></div>
     `);
@@ -138,7 +338,6 @@
     byId('sExchange').value = '';
     byId('sCurrency').value = 'CNY';
     byId('sLatestPrice').value = '';
-    lastLookup = null;
   }
 
   function scheduleMarketLookup() {
@@ -154,43 +353,49 @@
       box?.classList.add('hidden');
       return;
     }
+
     const source = byId('sInfoSource')?.value || 'auto';
-    byId('sQuoteSymbol').value ||= defaultQuoteSymbol(code);
+    if (byId('sQuoteSymbol')) byId('sQuoteSymbol').value ||= defaultQuoteSymbol(code);
+
     if (source === 'manual') {
-      box.classList.remove('hidden');
-      box.textContent = '手动模式：请自己填写名称、行业、市场和行情代码。';
+      box?.classList.remove('hidden');
+      if (box) box.textContent = '手动模式：请自己填写名称、行业、市场和行情代码。';
       return;
     }
-    box.classList.remove('hidden');
-    box.textContent = `正在从${sourceNames[source]}获取资料…`;
+
+    box?.classList.remove('hidden');
+    if (box) box.textContent = `正在从${sourceNames[source]}获取资料…`;
+
     try {
       const result = await marketRequest({ action: 'lookup', code, source });
-      lastLookup = result;
       byId('sCode').value = code;
       byId('sName').value = result.name || byId('sName').value;
       byId('sIndustry').value = result.industry || byId('sIndustry').value;
-      if (result.market) byId('sMarket').value = result.market;
+      if (result.market && [...byId('sMarket').options].some(o => o.value === result.market)) {
+        byId('sMarket').value = result.market;
+      }
       byId('sQuoteSymbol').value = result.quote_symbol || defaultQuoteSymbol(code);
       byId('sExchange').value = result.exchange || '';
       byId('sCurrency').value = result.currency || 'CNY';
       byId('sLatestPrice').value = result.latest_price ?? '';
-      box.innerHTML = `已获取：<strong>${esc(result.name || code)}</strong> · ${esc(result.industry || '行业可手动填写')} · ${esc(sourceNames[result.source] || result.source)}`;
+      if (box) box.innerHTML = `已获取：<strong>${esc(result.name || code)}</strong> · ${esc(result.industry || '行业可手动填写')} · ${esc(sourceNames[result.source] || result.source)}`;
     } catch (error) {
-      box.textContent = `自动获取失败：${error.message}。你仍然可以切换来源或手动填写。`;
+      if (box) box.textContent = `自动获取失败：${error.message}。你仍然可以切换来源或手动填写。`;
     }
   }
 
   async function enhancedSaveManualStock() {
-    const code = String(byId('sCode').value || '').trim().toUpperCase().replace(/\.(SH|SZ|BJ|SS)$/i, '');
-    const name = byId('sName').value.trim();
-    const infoSource = byId('sInfoSource').value;
-    const quoteSource = byId('sQuoteSource').value;
+    const code = String(byId('sCode')?.value || '').trim().toUpperCase().replace(/\.(SH|SZ|BJ|SS)$/i, '');
+    const name = byId('sName')?.value.trim() || '';
+    const infoSource = byId('sInfoSource')?.value || 'manual';
+    const quoteSource = byId('sQuoteSource')?.value || 'yahoo';
+
     if (!/^\d{6}$/.test(code)) return alert('请输入6位股票代码');
     if (!name) return alert('请填写股票名称');
     if (stocks.some(s => String(s.code) === code)) return alert('股票库中已经有这只股票');
 
     let firstBuy = null;
-    if (byId('firstBuyToggle').checked) {
+    if (byId('firstBuyToggle')?.checked) {
       firstBuy = {
         price: Number(byId('sBuyPrice').value),
         quantity: Number(byId('sBuyQty').value),
@@ -233,6 +438,7 @@
         client_request_id: request
       }).select().single();
       if (positionError) return alert(positionError.message);
+
       const { error: tradeError } = await sb.from('trades').insert({
         user_id: user.id,
         position_id: position.id,
@@ -251,25 +457,32 @@
 
     closeM('stockModal');
     await loadAll();
+    showHoldingPanel('stocks');
     toast('股票和数据来源已保存');
   }
 
   function renderEnhancedStocks() {
     const target = byId('stocksList');
     if (!target) return;
+
     if (!stocks.length) {
       target.innerHTML = '<div class="empty">暂无股票</div>';
       return;
     }
+
     target.innerHTML = `<div class="scroll"><table><thead><tr><th>代码</th><th>名称</th><th>行业 / 自定义板块</th><th>资料来源</th><th>K线代码</th><th>最新价</th><th>操作</th></tr></thead><tbody>${stocks.map(s => `
       <tr>
         <td><strong>${esc(s.code)}</strong></td>
-        <td>${esc(s.name)}<div class="muted" style="margin-top:4px">${esc(s.market || '')} ${esc(s.exchange || '')}</div></td>
-        <td>${esc(s.industry || '—')}<div class="muted" style="margin-top:4px">${esc(s.custom_sector || '未设置自定义板块')}</div></td>
+        <td>${esc(s.name)}<div class="muted table-sub">${esc(s.market || '')} ${esc(s.exchange || '')}</div></td>
+        <td>${esc(s.industry || '—')}<div class="muted table-sub">${esc(s.custom_sector || '未设置自定义板块')}</div></td>
         <td>${sourceBadge(s.info_source || 'manual')}</td>
-        <td>${esc(s.quote_symbol || defaultQuoteSymbol(s.code))}<div class="muted">${esc(s.quote_source || 'yahoo')}</div></td>
-        <td>${Number(s.current_price || 0) ? `${esc(s.currency || 'CNY')} ${Number(s.current_price).toFixed(2)}` : '待更新'}<div class="muted">${esc(s.price_date || '')}</div></td>
-        <td><div class="stock-actions"><button class="btn soft" style="padding:8px 12px;font-size:13px" onclick="refreshStockInfo('${s.id}')">更新资料</button><button class="btn soft" style="padding:8px 12px;font-size:13px" onclick="openStockEditor('${s.id}')">修改</button><button class="btn soft" style="padding:8px 12px;font-size:13px" onclick="quickNews('${s.id}','company')">新闻</button></div></td>
+        <td>${esc(s.quote_symbol || defaultQuoteSymbol(s.code))}<div class="muted table-sub">${esc(s.quote_source || 'yahoo')}</div></td>
+        <td>${Number(s.current_price || 0) ? `${esc(s.currency || 'CNY')} ${Number(s.current_price).toFixed(2)}` : '待更新'}<div class="muted table-sub">${esc(s.price_date || '')}</div></td>
+        <td><div class="stock-actions">
+          <button class="btn soft compact-btn" onclick="refreshStockInfo('${s.id}')">更新资料</button>
+          <button class="btn soft compact-btn" onclick="openStockEditor('${s.id}')">修改</button>
+          <button class="btn soft compact-btn" onclick="quickNews('${s.id}','company')">新闻</button>
+        </div></td>
       </tr>`).join('')}</tbody></table></div>`;
   }
 
@@ -294,24 +507,27 @@
   async function previewStockSource() {
     const source = byId('seInfoSource').value;
     const preview = byId('sePreview');
+    preview.classList.remove('hidden', 'error');
+
     if (source === 'manual') {
-      preview.className = 'source-preview';
       preview.textContent = '手动来源不会联网；请直接修改下方字段并保存。';
       return;
     }
-    preview.className = 'source-preview';
+
     preview.textContent = `正在从${sourceNames[source]}获取…`;
     try {
       const result = await marketRequest({ action: 'lookup', code: byId('seCode').value, source });
       byId('seName').value = result.name || byId('seName').value;
       byId('seIndustry').value = result.industry || byId('seIndustry').value;
-      if (result.market) byId('seMarket').value = result.market;
+      if (result.market && [...byId('seMarket').options].some(o => o.value === result.market)) {
+        byId('seMarket').value = result.market;
+      }
       byId('seExchange').value = result.exchange || '';
       byId('seCurrency').value = result.currency || 'CNY';
       byId('seQuoteSymbol').value = result.quote_symbol || defaultQuoteSymbol(byId('seCode').value);
       preview.innerHTML = `已获取 <strong>${esc(result.name || '')}</strong>；你可以继续手动修改再保存。`;
     } catch (error) {
-      preview.className = 'source-preview error';
+      preview.classList.add('error');
       preview.textContent = error.message;
     }
   }
@@ -330,8 +546,10 @@
       quote_symbol: byId('seQuoteSymbol').value.trim().toUpperCase() || defaultQuoteSymbol(byId('seCode').value),
       source_updated_at: byId('seInfoSource').value === 'manual' ? null : new Date().toISOString()
     };
+
     if (!payload.name) return alert('股票名称不能为空');
     setBusy('saveStockEditBtn', true, '正在保存…');
+
     try {
       const { error } = await sb.from('stocks').update(payload).eq('id', id);
       if (error) throw error;
@@ -348,10 +566,12 @@
   async function refreshStockInfo(id) {
     const stock = stocks.find(x => x.id === id);
     if (!stock) return;
+
     if ((stock.info_source || 'manual') === 'manual') {
       openStockEditor(id);
       return toast('当前为手动来源，请在修改窗口中选择资料源');
     }
+
     toast(`正在更新 ${stock.name}…`);
     try {
       const result = await marketRequest({ action: 'lookup', code: stock.code, source: stock.info_source || 'auto' });
@@ -378,169 +598,315 @@
     const target = byId('positionsList');
     if (!target) return;
     const open = posData().filter(x => x.open > 0);
+
     if (!open.length) {
       target.innerHTML = '<div class="empty">暂无持仓</div>';
       return;
     }
-    target.innerHTML = open.map(p => {
-      const stock = p.s;
-      const range = chartRanges.get(stock.id) || '1y';
-      const last = Number(stock.close_price || stock.current_price || p.buy.price || 0);
-      const floating = (last - Number(p.buy.price || 0)) * p.open;
-      return `<section class="market-position" data-stock-id="${stock.id}">
-        <div class="title">
-          <div>
-            <div class="market-price-line"><strong style="font-size:20px">${esc(stock.name)} ${esc(stock.code)}</strong>${sourceBadge(stock.info_source || 'manual')}</div>
-            <div class="muted" style="margin-top:6px">${esc(stock.custom_sector || stock.industry || '未分类')} · K线：${esc(stock.quote_symbol || defaultQuoteSymbol(stock.code))}</div>
+
+    target.innerHTML = open.map(position => {
+      const stock = position.s;
+      const last = Number(stock.close_price || stock.current_price || position.buy.price || 0);
+      const floating = (last - Number(position.buy.price || 0)) * position.open;
+      return `
+        <section class="market-position" data-position-id="${position.id}">
+          <div class="market-position-head">
+            <div>
+              <div class="market-price-line">
+                <strong>${esc(stock.name)} ${esc(stock.code)}</strong>
+                ${sourceBadge(stock.info_source || 'manual')}
+              </div>
+              <div class="muted market-position-meta">${esc(stock.custom_sector || stock.industry || '未分类')} · ${esc(stock.quote_symbol || defaultQuoteSymbol(stock.code))}</div>
+            </div>
+            <div class="actions market-position-actions">
+              <button class="btn soft" onclick="openStockEditor('${stock.id}')">资料与来源</button>
+              <button class="btn soft" onclick="openPositionEditor('${position.id}')">修正持仓</button>
+              <button class="btn primary" onclick="openSell('${position.id}')">卖出</button>
+            </div>
           </div>
-          <div class="actions"><button class="btn soft" onclick="openStockEditor('${stock.id}')">资料与来源</button><button class="btn soft" onclick="openPositionEditor('${p.id}')">修正持仓</button><button class="btn primary" onclick="openSell('${p.id}')">卖出</button></div>
-        </div>
-        <div class="market-subgrid">
-          <div><span>持仓数量</span><strong>${p.open} 股</strong></div>
-          <div><span>买入成本</span><strong>${Number(p.buy.price || 0).toFixed(2)}</strong></div>
-          <div><span>最新收盘</span><strong id="market-close-${stock.id}">${last ? last.toFixed(2) : '待更新'}</strong></div>
-          <div><span>浮动盈亏</span><strong id="market-profit-${stock.id}" style="color:${floating >= 0 ? 'var(--red)' : 'var(--green)'}">${money(floating)}</strong></div>
-          <div><span>行情日期</span><strong id="market-date-${stock.id}">${stock.price_date || '尚未同步'}</strong></div>
-        </div>
-        <div class="market-toolbar">
-          <div class="market-range">${[['1mo','1月'],['3mo','3月'],['1y','1年'],['5y','5年']].map(([key,label]) => `<button class="${range === key ? 'active' : ''}" onclick="changeChartRange('${stock.id}','${key}')">${label}</button>`).join('')}</div>
-          <button id="refresh-chart-${stock.id}" class="btn soft" onclick="refreshPositionChart('${stock.id}')">↻ 刷新K线</button>
-        </div>
-        <div id="chart-state-${stock.id}" class="market-chart-state">打开持仓页后读取缓存行情；点击刷新会向 Yahoo Finance 获取最新K线。</div>
-        <div id="chart-${stock.id}" class="market-chart"></div>
-      </section>`;
+
+          <div class="market-subgrid">
+            <div><span>持仓 / 成本</span><strong>${position.open}股 / ${Number(position.buy.price || 0).toFixed(2)}</strong></div>
+            <div><span>今日开盘</span><strong>${stock.open_price == null ? '待更新' : Number(stock.open_price).toFixed(2)}</strong></div>
+            <div><span>今日收盘</span><strong id="market-close-${position.id}">${last ? last.toFixed(2) : '待更新'}</strong></div>
+            <div><span>浮动盈亏</span><strong id="market-profit-${position.id}" class="${floating >= 0 ? 'profit-up' : 'profit-down'}">${money(floating)}</strong></div>
+            <div><span>行情日期</span><strong id="market-date-${position.id}">${stock.price_date || '尚未同步'}</strong></div>
+          </div>
+
+          <div class="kline-entry">
+            <button id="toggle-chart-${position.id}" class="kline-toggle" onclick="togglePositionChart('${position.id}')">
+              <span>查看K线</span><span class="kline-chevron">⌄</span>
+            </button>
+          </div>
+
+          <div id="kline-panel-${position.id}" class="kline-panel hidden">
+            <div class="kline-panel-head">
+              <div class="market-range">
+                ${[['1mo','1月'],['3mo','3月'],['6mo','6月'],['1y','1年'],['5y','5年']].map(([key, label]) =>
+                  `<button data-range="${key}" class="${key === (chartRanges.get(position.id) || '6mo') ? 'active' : ''}" onclick="changeChartRange('${position.id}','${key}')">${label}</button>`
+                ).join('')}
+              </div>
+              <button id="refresh-chart-${position.id}" class="btn soft compact-btn" onclick="refreshPositionChart('${position.id}')">↻ 刷新</button>
+            </div>
+            <div class="ma-legend">
+              <span class="ma5">MA5</span><span class="ma10">MA10</span><span class="ma20">MA20</span><span class="ma30">MA30</span>
+              <span class="muted">蓝线：买入成本</span>
+            </div>
+            <div id="chart-state-${position.id}" class="market-chart-state">只有展开后才会下载K线数据。</div>
+            <div id="chart-${position.id}" class="market-chart"></div>
+          </div>
+        </section>
+      `;
     }).join('');
   }
 
-  function waitForCharts() {
-    if (window.LightweightCharts) return Promise.resolve(window.LightweightCharts);
-    return new Promise((resolve, reject) => {
-      const started = Date.now();
-      const timer = setInterval(() => {
-        if (window.LightweightCharts) {
-          clearInterval(timer);
-          resolve(window.LightweightCharts);
-        } else if (Date.now() - started > 10000) {
-          clearInterval(timer);
-          reject(new Error('K线组件加载失败，请刷新页面重试'));
-        }
-      }, 80);
-    });
+  function movingAverage(bars, period) {
+    const result = [];
+    let sum = 0;
+    for (let i = 0; i < bars.length; i += 1) {
+      sum += Number(bars[i].close);
+      if (i >= period) sum -= Number(bars[i - period].close);
+      if (i >= period - 1) {
+        result.push({ time: bars[i].time, value: Number((sum / period).toFixed(4)) });
+      }
+    }
+    return result;
   }
 
-  function destroyChart(stockId) {
-    const handle = chartHandles.get(stockId);
+  function destroyChart(positionId) {
+    const handle = chartHandles.get(positionId);
     if (!handle) return;
     try { handle.observer?.disconnect(); } catch {}
     try { handle.chart?.remove(); } catch {}
-    chartHandles.delete(stockId);
+    chartHandles.delete(positionId);
   }
 
-  async function loadPositionChart(stockId, refresh = false) {
-    const stock = stocks.find(x => x.id === stockId);
-    const position = posData().find(x => x.stock_id === stockId && x.open > 0);
-    const container = byId(`chart-${stockId}`);
-    const state = byId(`chart-state-${stockId}`);
-    if (!stock || !position || !container) return;
+  async function drawChart(positionId, data) {
+    const L = await ensureChartLibrary();
+    const position = posData().find(x => x.id === positionId && x.open > 0);
+    const container = byId(`chart-${positionId}`);
+    if (!position || !container) return;
+
+    destroyChart(positionId);
+    container.innerHTML = '';
+
+    const chart = L.createChart(container, {
+      width: Math.max(container.clientWidth, 320),
+      height: container.clientHeight || 380,
+      layout: {
+        background: { color: '#ffffff' },
+        textColor: '#77777d',
+        fontFamily: '-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif',
+        fontSize: 12
+      },
+      grid: {
+        vertLines: { color: 'rgba(29,29,31,.045)' },
+        horzLines: { color: 'rgba(29,29,31,.07)' }
+      },
+      rightPriceScale: {
+        borderVisible: false,
+        scaleMargins: { top: 0.08, bottom: 0.1 }
+      },
+      timeScale: {
+        borderVisible: false,
+        timeVisible: false,
+        rightOffset: 3,
+        barSpacing: 8,
+        minBarSpacing: 3
+      },
+      crosshair: { mode: L.CrosshairMode.Normal },
+      handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true },
+      handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true }
+    });
+
+    const candles = chart.addCandlestickSeries({
+      upColor: '#ef4444',
+      downColor: '#16a34a',
+      borderUpColor: '#ef4444',
+      borderDownColor: '#16a34a',
+      wickUpColor: '#ef4444',
+      wickDownColor: '#16a34a',
+      priceLineVisible: false,
+      lastValueVisible: true
+    });
+    candles.setData(data.bars.map(bar => ({
+      time: bar.time,
+      open: Number(bar.open),
+      high: Number(bar.high),
+      low: Number(bar.low),
+      close: Number(bar.close)
+    })));
+
+    const maSettings = [
+      [5, '#1473e6'],
+      [10, '#ff7a1a'],
+      [20, '#e244c4'],
+      [30, '#66686d']
+    ];
+
+    maSettings.forEach(([period, color]) => {
+      const series = chart.addLineSeries({
+        color,
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false
+      });
+      series.setData(movingAverage(data.bars, period));
+    });
+
+    const buyPrice = Number(position.buy.price || 0);
+    if (buyPrice > 0) {
+      candles.createPriceLine({
+        price: buyPrice,
+        color: '#0071e3',
+        lineWidth: 1,
+        lineStyle: L.LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: '成本'
+      });
+    }
+
+    const markers = trades
+      .filter(t => t.position_id === position.id)
+      .map(t => ({
+        time: t.trade_date,
+        position: t.trade_type === 'buy' ? 'belowBar' : 'aboveBar',
+        color: t.trade_type === 'buy' ? '#ef4444' : '#16a34a',
+        shape: t.trade_type === 'buy' ? 'arrowUp' : 'arrowDown',
+        text: `${t.trade_type === 'buy' ? '买' : '卖'} ${Number(t.price).toFixed(2)}`
+      }))
+      .filter(marker => data.bars.some(bar => bar.time === marker.time));
+
+    if (markers.length) candles.setMarkers(markers);
+    chart.timeScale().fitContent();
+
+    const observer = new ResizeObserver(entries => {
+      const rect = entries[0]?.contentRect;
+      if (rect?.width) chart.applyOptions({ width: rect.width });
+    });
+    observer.observe(container);
+    chartHandles.set(positionId, { chart, observer });
+
+    const latest = data.bars.at(-1);
+    if (latest) {
+      const stock = position.s;
+      stock.current_price = latest.close;
+      stock.close_price = latest.close;
+      stock.open_price = latest.open;
+      stock.price_date = latest.time;
+
+      const floating = (Number(latest.close) - buyPrice) * Number(position.open);
+      const closeNode = byId(`market-close-${positionId}`);
+      const dateNode = byId(`market-date-${positionId}`);
+      const profitNode = byId(`market-profit-${positionId}`);
+
+      if (closeNode) closeNode.textContent = Number(latest.close).toFixed(2);
+      if (dateNode) dateNode.textContent = latest.time;
+      if (profitNode) {
+        profitNode.textContent = money(floating);
+        profitNode.className = floating >= 0 ? 'profit-up' : 'profit-down';
+      }
+    }
+  }
+
+  async function loadPositionChart(positionId, refresh = false) {
+    const position = posData().find(x => x.id === positionId && x.open > 0);
+    const state = byId(`chart-state-${positionId}`);
+    const container = byId(`chart-${positionId}`);
+    if (!position || !state || !container) return;
+
+    const stock = position.s;
     if ((stock.quote_source || 'yahoo') === 'manual') {
       state.textContent = '这只股票选择了“暂不联网”，可在“资料与来源”中切回 Yahoo Finance。';
       container.innerHTML = '<div class="empty">K线联网已关闭</div>';
       return;
     }
-    state.textContent = refresh ? '正在从 Yahoo Finance 刷新并去重保存…' : '正在读取K线缓存…';
-    try {
-      const range = chartRanges.get(stockId) || '1y';
-      const data = await marketRequest({
-        action: 'chart',
-        symbol: stock.quote_symbol || defaultQuoteSymbol(stock.code),
-        stock_id: stock.id,
-        range,
-        interval: '1d',
-        refresh: refresh ? '1' : '0'
-      });
-      if (!Array.isArray(data.bars) || !data.bars.length) throw new Error('没有可用K线');
-      await waitForCharts();
-      destroyChart(stockId);
-      container.innerHTML = '';
-      const chart = LightweightCharts.createChart(container, {
-        width: container.clientWidth,
-        height: container.clientHeight,
-        layout: { background: { color: '#ffffff' }, textColor: '#6e6e73', fontFamily: '-apple-system,BlinkMacSystemFont,PingFang SC,sans-serif' },
-        grid: { vertLines: { color: 'rgba(29,29,31,.055)' }, horzLines: { color: 'rgba(29,29,31,.055)' } },
-        rightPriceScale: { borderColor: 'rgba(29,29,31,.1)', scaleMargins: { top: .08, bottom: .23 } },
-        timeScale: { borderColor: 'rgba(29,29,31,.1)', timeVisible: false, rightOffset: 4 },
-        crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
-      });
-      const candles = chart.addCandlestickSeries({
-        upColor: '#d70015', downColor: '#168443', borderUpColor: '#d70015', borderDownColor: '#168443', wickUpColor: '#d70015', wickDownColor: '#168443'
-      });
-      candles.setData(data.bars.map(b => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close })));
-      const volume = chart.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: '' });
-      volume.priceScale().applyOptions({ scaleMargins: { top: .82, bottom: 0 } });
-      volume.setData(data.bars.map(b => ({ time: b.time, value: Number(b.volume || 0), color: b.close >= b.open ? 'rgba(215,0,21,.45)' : 'rgba(22,132,67,.45)' })));
-      const buyPrice = Number(position.buy.price || 0);
-      if (buyPrice > 0) candles.createPriceLine({ price: buyPrice, color: '#0071e3', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: '买入成本' });
-      const markers = trades.filter(t => t.position_id === position.id).map(t => ({
-        time: t.trade_date,
-        position: t.trade_type === 'buy' ? 'belowBar' : 'aboveBar',
-        color: t.trade_type === 'buy' ? '#d70015' : '#168443',
-        shape: t.trade_type === 'buy' ? 'arrowUp' : 'arrowDown',
-        text: `${t.trade_type === 'buy' ? '买' : '卖'} ${Number(t.price).toFixed(2)}`
-      })).filter(m => data.bars.some(b => b.time === m.time));
-      if (markers.length) candles.setMarkers(markers);
-      chart.timeScale().fitContent();
-      const observer = new ResizeObserver(entries => {
-        const rect = entries[0]?.contentRect;
-        if (rect?.width) chart.applyOptions({ width: rect.width });
-      });
-      observer.observe(container);
-      chartHandles.set(stockId, { chart, observer });
 
-      const latest = data.bars[data.bars.length - 1];
-      stock.current_price = latest.close;
-      stock.close_price = latest.close;
-      stock.open_price = latest.open;
-      stock.price_date = latest.time;
-      const floating = (Number(latest.close) - buyPrice) * Number(position.open);
-      const closeNode = byId(`market-close-${stockId}`);
-      const dateNode = byId(`market-date-${stockId}`);
-      const profitNode = byId(`market-profit-${stockId}`);
-      if (closeNode) closeNode.textContent = Number(latest.close).toFixed(2);
-      if (dateNode) dateNode.textContent = latest.time;
-      if (profitNode) {
-        profitNode.textContent = money(floating);
-        profitNode.style.color = floating >= 0 ? 'var(--red)' : 'var(--green)';
+    const range = chartRanges.get(positionId) || '6mo';
+    const symbol = stock.quote_symbol || defaultQuoteSymbol(stock.code);
+    const cacheKey = `${symbol}|${range}|1d`;
+    state.textContent = refresh ? '正在向 Yahoo Finance 刷新数据…' : '正在读取K线…';
+
+    try {
+      let data = !refresh ? chartCache.get(cacheKey) : null;
+      if (!data) {
+        data = await marketRequest({
+          action: 'chart',
+          symbol,
+          stock_id: stock.id,
+          range,
+          interval: '1d',
+          refresh: refresh ? '1' : '0'
+        });
+        if (!Array.isArray(data.bars) || !data.bars.length) throw new Error('没有可用K线');
+        chartCache.set(cacheKey, data);
       }
-      state.textContent = `${data.bars.length} 根日K · ${data.source === 'yahoo' ? 'Yahoo Finance' : data.source} · ${refresh ? '刚刚刷新并保存' : '读取本地缓存'}`;
+
+      await drawChart(positionId, data);
+      state.textContent = `${data.bars.length} 根日K · MA5 / MA10 / MA20 / MA30 · ${refresh ? '刚刚刷新' : '已加载'}`;
     } catch (error) {
       state.textContent = `K线加载失败：${error.message}`;
-      container.innerHTML = '<div class="empty">暂时无法显示K线，稍后可再次刷新</div>';
+      container.innerHTML = '<div class="empty">暂时无法显示K线，稍后可以再次打开或刷新</div>';
     }
   }
 
-  async function loadAllPositionCharts() {
-    const openStockIds = [...new Set(posData().filter(x => x.open > 0).map(x => x.stock_id))];
-    for (const id of openStockIds) await loadPositionChart(id, false);
+  async function togglePositionChart(positionId) {
+    const panel = byId(`kline-panel-${positionId}`);
+    const button = byId(`toggle-chart-${positionId}`);
+    if (!panel || !button) return;
+
+    const opening = panel.classList.contains('hidden');
+    if (!opening) {
+      destroyChart(positionId);
+      panel.classList.add('hidden');
+      button.classList.remove('active');
+      button.querySelector('span:first-child').textContent = '查看K线';
+      button.querySelector('.kline-chevron').textContent = '⌄';
+      return;
+    }
+
+    panel.classList.remove('hidden');
+    button.classList.add('active');
+    button.querySelector('span:first-child').textContent = '收起K线';
+    button.querySelector('.kline-chevron').textContent = '⌃';
+    await loadPositionChart(positionId, false);
   }
 
-  async function refreshPositionChart(stockId) {
-    const button = byId(`refresh-chart-${stockId}`);
-    if (button) { button.disabled = true; button.textContent = '刷新中…'; }
+  async function refreshPositionChart(positionId) {
+    const button = byId(`refresh-chart-${positionId}`);
+    if (button) {
+      button.disabled = true;
+      button.textContent = '刷新中…';
+    }
     try {
-      await loadPositionChart(stockId, true);
-      toast('K线已刷新并去重保存');
+      const position = posData().find(x => x.id === positionId);
+      if (position) {
+        const range = chartRanges.get(positionId) || '6mo';
+        chartCache.delete(`${position.s.quote_symbol || defaultQuoteSymbol(position.s.code)}|${range}|1d`);
+      }
+      await loadPositionChart(positionId, true);
+      toast('K线已刷新并保存');
     } finally {
-      if (button) { button.disabled = false; button.textContent = '↻ 刷新K线'; }
+      if (button) {
+        button.disabled = false;
+        button.textContent = '↻ 刷新';
+      }
     }
   }
 
-  async function changeChartRange(stockId, range) {
-    chartRanges.set(stockId, range);
-    renderEnhancedPositions();
-    await loadAllPositionCharts();
+  async function changeChartRange(positionId, range) {
+    chartRanges.set(positionId, range);
+    const panel = byId(`kline-panel-${positionId}`);
+    panel?.querySelectorAll('[data-range]').forEach(button => {
+      button.classList.toggle('active', button.dataset.range === range);
+    });
+    await loadPositionChart(positionId, false);
   }
 
   function installEnhancements() {
+    ensureMarketStyles();
+    installConsolidatedLayout();
     installStockFields();
     installEditModal();
 
@@ -549,6 +915,17 @@
       baseResetStockForm();
       resetMarketStockFields();
     };
+
+    const baseOpenBuy = openBuy;
+    openBuy = function () {
+      if (!stocks.length) {
+        showHoldingPanel('stocks');
+        toast('请先将新股票加入股票库');
+        return;
+      }
+      baseOpenBuy();
+    };
+
     lookupStockByCode = lookupStockFromSelectedSource;
     saveManualStock = enhancedSaveManualStock;
 
@@ -557,19 +934,25 @@
       baseRender();
       renderEnhancedStocks();
       renderEnhancedPositions();
-      if (byId('positions')?.classList.contains('active')) setTimeout(loadAllPositionCharts, 0);
     };
 
     const baseShowPage = showPage;
     showPage = function (id) {
-      baseShowPage(id);
-      if (id === 'positions') setTimeout(loadAllPositionCharts, 0);
+      if (id === 'flows' || id === 'stocks') return showHoldingPanel(id);
+      if (id === 'learning') return showLearningPanel('lesson');
+      if (id === 'positions') return showHoldingPanel('positions');
+      if (id === 'notes') return showLearningPanel('notes');
+      return baseShowPage(id);
     };
 
+    window.showHoldingPanel = showHoldingPanel;
+    window.showLearningPanel = showLearningPanel;
+    window.goToStockLibrary = goToStockLibrary;
     window.openStockEditor = openStockEditor;
     window.previewStockSource = previewStockSource;
     window.saveStockEditor = saveStockEditor;
     window.refreshStockInfo = refreshStockInfo;
+    window.togglePositionChart = togglePositionChart;
     window.refreshPositionChart = refreshPositionChart;
     window.changeChartRange = changeChartRange;
 
