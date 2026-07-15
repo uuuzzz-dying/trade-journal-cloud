@@ -1,0 +1,28 @@
+.market-position{padding:22px 0;border-bottom:1px solid var(--line)}
+.market-position:last-child{border-bottom:0}
+.market-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:14px 0 8px}
+.market-toolbar .market-range{display:flex;gap:7px;flex-wrap:wrap}
+.market-range button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 12px;font-size:12px;font-weight:750;color:var(--muted)}
+.market-range button.active{background:var(--black);border-color:var(--black);color:#fff}
+.market-chart{height:340px;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:#fff;margin-top:12px}
+.market-chart-state{min-height:24px;color:var(--muted);font-size:13px;margin-top:9px}
+.market-source{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 9px;background:#f2f4f7;font-size:12px;font-weight:750;color:#53535a}
+.market-source:before{content:"";width:7px;height:7px;border-radius:50%;background:#0071e3}
+.market-source.manual:before{background:#8e8e93}
+.market-source.eastmoney:before{background:#d70015}
+.market-source.yahoo:before{background:#7b3ff2}
+.market-source.auto:before{background:#168443}
+.market-price-line{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.market-price{font-size:28px;font-weight:800;letter-spacing:-.7px}
+.market-subgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:16px}
+.market-subgrid>div{padding:12px;border-radius:14px;background:#f7f7f9}
+.market-subgrid span{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}
+.market-subgrid strong{font-size:15px}
+.stock-source-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:14px 0}
+.stock-source-grid .wide{grid-column:span 2}
+.stock-actions{display:flex;gap:7px;flex-wrap:wrap}
+.source-preview{padding:14px;border-radius:16px;background:#f0f7ff;color:#245a96;margin:12px 0;line-height:1.6}
+.source-preview.error{background:#fff1f2;color:#a80e1d}
+.market-warning{padding:12px 14px;border-radius:14px;background:#fff8e7;color:#8a5a00;font-size:13px;line-height:1.55;margin-top:10px}
+@media(max-width:900px){.market-subgrid{grid-template-columns:repeat(2,1fr)}.stock-source-grid{grid-template-columns:1fr}.stock-source-grid .wide{grid-column:auto}}
+@media(max-width:650px){.market-chart{height:290px}.market-price{font-size:24px}.market-toolbar>.btn{width:auto}.stock-actions .btn{width:auto}}
