@@ -300,6 +300,8 @@ tr:last-child td{border-bottom:0}
   .chatgpt-row,.lesson-practice{grid-template-columns:1fr}
 }
 </style>
+<link rel="stylesheet" href="/market.css">
+<script defer src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
 <section id="auth" class="auth">
@@ -968,5 +970,6 @@ $('sCode').addEventListener('input',scheduleStockLookup);
 $('sCode').addEventListener('blur',lookupStockByCode);
 init();
 </script>
+<script src="/market.js"></script>
 </body>
 </html>
