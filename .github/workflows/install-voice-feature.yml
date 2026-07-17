@@ -1,0 +1,44 @@
+name: Install voice feature
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    if: ${{ !contains(github.event.head_commit.message || '', '[voice-installed]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add voice loader
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('public/market.js')
+          text = path.read_text(encoding='utf-8')
+          if "/voice.js?v=1" not in text:
+              old = "  installEnhancements();\n})();"
+              new = "  installEnhancements();\n  const voiceScript = document.createElement('script');\n  voiceScript.src = '/voice.js?v=1';\n  voiceScript.defer = true;\n  document.body.appendChild(voiceScript);\n})();"
+              if old not in text:
+                  raise SystemExit('Could not find market.js ending')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+      - name: Validate JavaScript
+        run: |
+          node --check public/market.js
+          node --check public/voice.js
+      - name: Commit loader
+        run: |
+          if git diff --quiet; then
+            echo "Voice loader already installed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/market.js
+          git commit -m "feat: load voice note tools [voice-installed]"
+          git push
