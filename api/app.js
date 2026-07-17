@@ -18,15 +18,26 @@ function buildHtml() {
     cachedHtml = cachedHtml.replace(
       "</head>",
       '<link rel="stylesheet" href="/market.css">' +
+        '<link rel="stylesheet" href="/quant.css?v=1">' +
         '<script defer src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>' +
         "</head>"
+    );
+  } else if (!cachedHtml.includes('href="/quant.css')) {
+    cachedHtml = cachedHtml.replace(
+      "</head>",
+      '<link rel="stylesheet" href="/quant.css?v=1">' + "</head>"
     );
   }
 
   if (!cachedHtml.includes('src="/market.js"')) {
     cachedHtml = cachedHtml.replace(
       "</body>",
-      '<script src="/market.js"></script></body>'
+      '<script src="/market.js"></script><script src="/quant.js?v=1"></script></body>'
+    );
+  } else if (!cachedHtml.includes('src="/quant.js')) {
+    cachedHtml = cachedHtml.replace(
+      "</body>",
+      '<script src="/quant.js?v=1"></script></body>'
     );
   }
 
