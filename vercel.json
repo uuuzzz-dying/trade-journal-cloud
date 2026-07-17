@@ -7,7 +7,7 @@
       "destination": "/api/app"
     },
     {
-      "source": "/((?!api/|market.css$|market.js$).*)",
+      "source": "/((?!api/|market.css$|market.js$|quant.css$|quant.js$|voice.js$).*)",
       "destination": "/api/app"
     }
   ],
