@@ -1358,4 +1358,8 @@
   }
 
   installEnhancements();
+  const voiceScript = document.createElement('script');
+  voiceScript.src = '/voice.js?v=1';
+  voiceScript.defer = true;
+  document.body.appendChild(voiceScript);
 })();
