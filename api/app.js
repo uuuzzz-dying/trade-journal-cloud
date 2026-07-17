@@ -1,6 +1,6 @@
 const fs = require("node:fs");
 
-const indexPath = require.resolve("../public/index.html");
+const indexPath = require.resolve("../app/index.html");
 let cachedHtml = "";
 
 function buildHtml() {
@@ -9,7 +9,7 @@ function buildHtml() {
   const source = fs.readFileSync(indexPath, "utf8");
 
   if (!source.includes("</head>") || !source.includes("</body>")) {
-    throw new Error("public/index.html 结构不完整");
+    throw new Error("app/index.html 结构不完整");
   }
 
   cachedHtml = source;
