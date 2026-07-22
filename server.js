@@ -20,9 +20,10 @@ app.get("/api/config", (req, res) => {
 });
 
 app.get("/api/market-data", marketData);
-app.use(express.static(publicDir, { etag: true, maxAge: "5m" }));
+app.use(express.static(publicDir, { etag: true, maxAge: "5m", index: false }));
 
 app.use((req, res) => {
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   res.sendFile(path.join(publicDir, "index.html"));
 });
 
