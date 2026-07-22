@@ -1,1 +1,13 @@
-{"name":"trade-journal-cloud","version":"2.1.0","private":true}
+{
+  "name": "trade-journal-cloud",
+  "version": "2.2.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js && node --check api/market-data.js && node --check public/market.js && node --check public/notes.js && node --check public/voice.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0"
+  }
+}

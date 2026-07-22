@@ -7,7 +7,6 @@
   const chartRanges = new Map();
   const chartCache = new Map();
   let chartLibraryPromise = null;
-  let cloudConfig = null;
   let marketLookupTimer = null;
 
   const sourceNames = {
@@ -196,25 +195,12 @@
     }
   }
 
-  async function getCloudConfig() {
-    if (cloudConfig) return cloudConfig;
-    const response = await fetch('/api/config', { cache: 'no-store' });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok || !body.supabaseUrl || !body.supabaseAnonKey) {
-      throw new Error(body.error || '无法读取云端配置');
-    }
-    cloudConfig = body;
-    return body;
-  }
-
   async function marketRequest(params) {
-    const config = await getCloudConfig();
     const { data: { session } } = await sb.auth.getSession();
     if (!session?.access_token) throw new Error('登录状态已过期，请重新登录');
     const query = new URLSearchParams(params);
-    const response = await fetch(`${config.supabaseUrl}/functions/v1/market-data?${query}`, {
+    const response = await fetch(`/api/market-data?${query}`, {
       headers: {
-        apikey: config.supabaseAnonKey,
         Authorization: `Bearer ${session.access_token}`
       },
       cache: 'no-store'
@@ -1187,6 +1173,16 @@
         profitNode.textContent = formatMoneyByCurrency(floating, stock.currency || 'CNY');
         profitNode.className = floating >= 0 ? 'profit-up' : 'profit-down';
       }
+
+      const pricePayload = {
+        current_price: latest.close,
+        close_price: latest.close,
+        open_price: latest.open,
+        price_date: latest.time,
+        source_updated_at: new Date().toISOString()
+      };
+      const { error } = await sb.from('stocks').update(pricePayload).eq('id', stock.id);
+      if (error) console.warn('最新行情未能写回股票库：', error.message);
     }
   }
 
@@ -1206,7 +1202,7 @@
     const range = chartRanges.get(positionId) || '6mo';
     const symbol = stock.quote_symbol || defaultQuoteSymbol(stock.code);
     const cacheKey = `${symbol}|${range}|1d`;
-    state.textContent = refresh ? '正在向 Yahoo Finance 刷新数据…' : '正在读取K线…';
+    state.textContent = refresh ? '正在刷新市场数据…' : '正在读取K线…';
 
     try {
       let data = !refresh ? chartCache.get(cacheKey) : null;
@@ -1224,7 +1220,7 @@
       }
 
       await drawChart(positionId, data);
-      state.textContent = `${data.bars.length} 根日K · MA5 / MA10 / MA20 / MA30 · ${refresh ? '刚刚刷新' : '已加载'}`;
+      state.textContent = `${data.bars.length} 根日K · MA5 / MA10 / MA20 / MA30 · ${sourceNames[data.source] || data.source || '市场数据'} · ${refresh ? '刚刚刷新' : '已加载'}`;
     } catch (error) {
       state.textContent = `K线加载失败：${error.message}`;
       container.innerHTML = '<div class="empty">暂时无法显示K线，稍后可以再次打开或刷新</div>';
@@ -1358,8 +1354,4 @@
   }
 
   installEnhancements();
-  const voiceScript = document.createElement('script');
-  voiceScript.src = '/voice.js?v=1';
-  voiceScript.defer = true;
-  document.body.appendChild(voiceScript);
 })();
